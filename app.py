@@ -14,29 +14,55 @@ with st.sidebar:
 # Định nghĩa bảng màu (Theme)
 if dark_mode:
     theme = {
-        "bg_color": "#262730",      # Màu nền chính của app (cho thẻ)
-        "card_bg": "#1E1E1E",       # Màu nền thẻ (Đen xám)
+        "bg_color": "#0E1117",      # Màu nền TOÀN BỘ WEB (Đen sâu)
+        "card_bg": "#1E1E1E",       # Màu nền thẻ (Xám đen - sáng hơn nền web xíu)
         "text_main": "#FFFFFF",     # Chữ chính (Trắng)
         "text_sub": "#B0B0B0",      # Chữ phụ (Xám sáng)
-        "input_bg": "#333333",      # Nền ô nhập liệu
+        "input_bg": "#262730",      # Nền ô nhập liệu
         "border": "#444444",        # Viền thẻ
-        "shadow": "rgba(255,255,255,0.05)" # Bóng mờ (nhẹ)
+        "shadow": "rgba(0,0,0,0.5)" # Bóng đổ đậm hơn cho dark mode
     }
 else:
     theme = {
-        "bg_color": "#ffffff",
-        "card_bg": "#ffffff",
-        "text_main": "#333333",
-        "text_sub": "#555555",
-        "input_bg": "#f8f9fa",
-        "border": "#f0f2f6",
-        "shadow": "rgba(0,0,0,0.1)"
+        "bg_color": "#ffffff",      # Màu nền TOÀN BỘ WEB (Trắng)
+        "card_bg": "#ffffff",       # Màu nền thẻ (Trắng)
+        "text_main": "#333333",     # Chữ chính (Đen)
+        "text_sub": "#555555",      # Chữ phụ (Xám)
+        "input_bg": "#f8f9fa",      # Nền ô nhập liệu
+        "border": "#f0f2f6",        # Viền thẻ
+        "shadow": "rgba(0,0,0,0.1)" # Bóng đổ nhẹ
     }
 
-# --- 3. CSS ĐỘNG (Dựa trên theme) ---
+# --- 3. CSS ĐỘNG (Áp dụng cho toàn bộ web) ---
 st.markdown(f"""
 <style>
-    /* Biến màu sắc toàn cục */
+    /* 1. ĐỔI MÀU NỀN TOÀN BỘ WEB (Quan trọng nhất) */
+    .stApp {{
+        background-color: {theme['bg_color']};
+        color: {theme['text_main']};
+    }}
+    
+    /* Đổi màu header (thanh trên cùng) nếu có */
+    header[data-testid="stHeader"] {{
+        background-color: {theme['bg_color']};
+    }}
+
+    /* 2. CẤU HÌNH INPUT & RADIO BUTTON CHO DARK MODE */
+    /* Chữ trong ô input */
+    .stTextInput > div > div > input {{
+        color: {theme['text_main']};
+        background-color: {theme['input_bg']};
+    }}
+    /* Chữ trong Radio button (Quiz) */
+    .stRadio label {{
+        color: {theme['text_main']} !important;
+    }}
+    /* Tiêu đề các Tab */
+    .stTabs [data-baseweb="tab"] {{
+        color: {theme['text_main']};
+    }}
+
+    /* 3. CÁC STYLE CŨ (Thẻ, Nút bấm...) */
     :root {{
         --primary: #4e54c8;
         --secondary: #8f94fb;
