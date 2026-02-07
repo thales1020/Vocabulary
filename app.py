@@ -6,9 +6,10 @@ import random
 st.set_page_config(page_title="Vocab cho cổ", page_icon="🌸", layout="centered")
 
 # CSS: Copy màu sắc và style từ file HTML gốc để tạo cảm giác quen thuộc
+# CSS: Đã điều chỉnh cỡ chữ TO HƠN
 st.markdown("""
     <style>
-    /* Biến màu sắc giống HTML cũ */
+    /* Biến màu sắc */
     :root {
         --primary: #4e54c8;
         --secondary: #8f94fb;
@@ -19,8 +20,9 @@ st.markdown("""
     .stButton>button {
         width: 100%;
         border-radius: 50px;
-        height: 45px;
-        font-weight: 600;
+        height: 50px; /* Nút to hơn chút */
+        font-weight: 700;
+        font-size: 20px; /* Chữ trong nút to lên */
         border: none;
         box-shadow: 0 4px 10px rgba(78, 84, 200, 0.3);
         transition: transform 0.2s;
@@ -32,42 +34,76 @@ st.markdown("""
     /* Card Style */
     .flashcard {
         background-color: white;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 40px; /* Padding rộng hơn */
+        border-radius: 20px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
         text-align: center;
-        border: 1px solid #eee;
-        min-height: 350px;
+        border: 2px solid #f0f2f6;
+        min-height: 450px; /* Thẻ cao hơn */
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
     }
     
-    /* Typography */
-    .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 5px; margin-top: 10px; }
-    .term { font-size: 28px; font-weight: bold; color: #4e54c8; margin-bottom: 10px;}
-    .meaning { font-size: 18px; font-weight: 500; color: #333; margin-bottom: 10px;}
-    .vietnamese { font-size: 20px; font-weight: bold; color: #4e54c8; margin-bottom: 15px;}
-    .example { font-size: 15px; font-style: italic; color: #666;}
+    /* --- PHẦN CHỈNH CỠ CHỮ --- */
+    .label { 
+        font-size: 14px; 
+        text-transform: uppercase; 
+        letter-spacing: 2px; 
+        color: #aaa; 
+        margin-bottom: 10px; 
+        margin-top: 20px; 
+        font-weight: 600;
+    }
+    
+    .term { 
+        font-size: 60px !important; /* Term siêu to */
+        font-weight: 900; 
+        color: #4e54c8; 
+        margin-bottom: 20px;
+        line-height: 1.2;
+    }
+    
+    .meaning { 
+        font-size: 28px !important; /* Nghĩa tiếng Anh to */
+        font-weight: 500; 
+        color: #333; 
+        margin-bottom: 15px;
+        line-height: 1.4;
+    }
+    
+    .vietnamese { 
+        font-size: 35px !important; /* Nghĩa Tiếng Việt nổi bật */
+        font-weight: bold; 
+        color: #ff6b6b; 
+        margin-bottom: 25px;
+    }
+    
+    .example { 
+        font-size: 22px !important; /* Ví dụ dễ đọc */
+        font-style: italic; 
+        color: #555;
+        line-height: 1.5;
+    }
     
     /* Masked Word Style */
     .masked-word {
         font-family: 'Courier New', monospace;
-        font-size: 26px;
-        letter-spacing: 4px;
+        font-size: 40px; /* Chữ điền từ cũng to lên */
+        letter-spacing: 8px;
         font-weight: bold;
         color: #333;
-        margin: 20px 0;
+        margin: 30px 0;
         background: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px;
+        padding: 20px;
+        border-radius: 12px;
     }
 
     /* Feedback */
-    .success-msg { color: #28a745; font-weight: bold; font-size: 18px; padding: 10px;}
-    .error-msg { color: #dc3545; font-weight: bold; font-size: 18px; padding: 10px;}
-    .hint-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px;}
+    .success-msg { color: #28a745; font-weight: bold; font-size: 24px; padding: 15px;}
+    .error-msg { color: #dc3545; font-weight: bold; font-size: 24px; padding: 15px;}
+    .hint-box { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 18px;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -185,6 +221,7 @@ st.title("Business English")
 tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 
 # === TAB 1: FLASHCARD ===
+# === TAB 1: FLASHCARD ===
 with tab1:
     # Container mô phỏng thẻ
     with st.container():
@@ -196,9 +233,9 @@ with tab1:
                 <div class="term">{card['term']}</div>
                 <div style="margin-top:40px; color:#999; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
             </div>
-            """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)  # <--- QUAN TRỌNG: Phải có dòng này
         else:
-            # MẶT SAU (Giống HTML: EN -> VN -> Example)
+            # MẶT SAU
             st.markdown(f"""
             <div class="flashcard">
                 <div class="label">DEFINITION (EN)</div>
@@ -210,16 +247,15 @@ with tab1:
                 <div class="label">EXAMPLE</div>
                 <div class="example">"{card['example']}"</div>
             </div>
-            """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True) # <--- QUAN TRỌNG: Phải có dòng này
             
     col1, col2 = st.columns(2)
-    if col1.button("Flip", use_container_width=True):
+    if col1.button("🔄 Lật thẻ", use_container_width=True):
         st.session_state.flip = not st.session_state.flip
         st.rerun()
-    if col2.button("Next", type="primary", use_container_width=True):
+    if col2.button("➡️ Từ tiếp theo", type="primary", use_container_width=True):
         next_card()
         st.rerun()
-
 # === TAB 2: MISSING LETTERS (Logic giống HTML) ===
 with tab2:
     st.markdown(f"""
