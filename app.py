@@ -196,6 +196,13 @@ with st.sidebar:
         "Unit 2": "Unit 2 - Business Terms",
         "Unit 3": "Unit 3 - Business Terms",
         "Unit 4": "Unit 4 - Business Terms"
+        "Unit 5": "Unit 5 - Business Terms",
+        "Unit 6": "Unit 6 - Business Terms"
+        "Unit 7": "Unit 7 - Business Terms",
+        "Unit 8": "Unit 8 - Business Terms",
+        "Unit 9": "Unit 9 - Business Terms",
+        "Unit 10": "Unit 10 - Business Terms"
+        
     }
     
     # 2. Hộp chọn thông minh
