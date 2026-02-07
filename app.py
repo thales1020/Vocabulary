@@ -61,6 +61,20 @@ st.markdown(f"""
     .stTabs [data-baseweb="tab"] {{
         color: {theme['text_main']};
     }}
+    
+    /* Custom Toggle Button (Màu Tím) */
+    /* Khi toggle BẬT */
+    .stCheckbox input[type="checkbox"]:checked + div {{
+        background-color: #8b5cf6 !important;
+    }}
+    /* Track của toggle khi BẬT */
+    [data-testid="stCheckbox"] input:checked ~ div {{
+        background-color: #8b5cf6 !important;
+    }}
+    /* Nút tròn bên trong toggle */
+    [data-testid="stCheckbox"] input:checked ~ div > div {{
+        background-color: white !important;
+    }}
 
     /* 3. CÁC STYLE CŨ (Thẻ, Nút bấm...) */
     :root {{
