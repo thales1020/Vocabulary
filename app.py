@@ -186,20 +186,49 @@ def next_card():
     st.session_state.qz_answered = False
 
 # Load Data
+# Load Data
 with st.sidebar:
     st.title("Cài đặt")
-    unit = st.selectbox("Chọn bài học:", ["All", "Unit 2", "Unit 3"])
-    if st.button("Tải lại dữ liệu"):
+    
+    # 1. Định nghĩa tên hiển thị cho đẹp (Mapping)
+    unit_labels = {
+        "All": "Tất cả các từ (All Units)",
+        "Unit 2": "Unit 2 - Business Terms",
+        "Unit 3": "Unit 3 - Business Terms",
+        "Unit 4": "Unit 4 - Business Terms"
+    }
+    
+    # 2. Hộp chọn thông minh
+    # - options: Danh sách các key ["All", "Unit 2", "Unit 3", "Unit 4"] để gửi xuống Database
+    # - format_func: Hàm biến đổi key thành tên đẹp để hiển thị ra màn hình
+    unit = st.selectbox(
+        "Choose unit:",
+        options=list(unit_labels.keys()), 
+        format_func=lambda x: unit_labels[x] 
+    )
+    
+    # Nút tải lại
+    if st.button("Reload data(để chơi th chứ khỏi bấm:))"):
         st.cache_data.clear()
         st.rerun()
+    
+    # Hiển thị thống kê nhỏ
+    st.markdown("---")
+    st.caption(f"Now is on: **{unit_labels[unit]}**")
 
+# Gọi hàm load data với giá trị 'unit' (là "Unit 2", "Unit 3"...) chứ không phải tên dài
 data = load_vocab(unit)
+
 if data:
     if st.session_state.vocab_list != data:
         st.session_state.vocab_list = data
         next_card()
+        # Reset lại các biến đếm khi đổi bài để tránh lỗi index
+        st.session_state.ms_key_counter += 1
+        st.session_state.ty_key_counter += 1
+        st.rerun()
 else:
-    st.error("Chưa kết nối được Supabase hoặc không có dữ liệu!")
+    st.error("Bà chưa gửi tui mà bà đòi học hả?")
     st.stop()
 
 card = st.session_state.current_card
