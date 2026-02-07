@@ -211,7 +211,7 @@ def next_card():
 with st.sidebar:
     st.title("Cài đặt")
     # Nút gạt chế độ tối
-    dark_mode = st.toggle("🌙 Chế độ ban đêm")
+    dark_mode = st.toggle("🌙 Night shift")
 
 # Định nghĩa màu sắc dựa trên chế độ
 if dark_mode:
