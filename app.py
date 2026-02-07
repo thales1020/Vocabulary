@@ -3,189 +3,346 @@ from supabase import create_client, Client
 import random
 
 # --- 1. SETUP & CONFIG ---
-st.set_page_config(page_title="Business English App", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="Vocab cho cổ", page_icon="🌸", layout="centered")
 
-# CSS để làm đẹp giao diện (tương tự file HTML cũ)
+# CSS: Copy màu sắc và style từ file HTML gốc để tạo cảm giác quen thuộc
 st.markdown("""
     <style>
+    /* Biến màu sắc giống HTML cũ */
+    :root {
+        --primary: #4e54c8;
+        --secondary: #8f94fb;
+        --success: #28a745;
+        --error: #dc3545;
+    }
+    
     .stButton>button {
         width: 100%;
-        border-radius: 20px;
-        height: 50px;
-        font-weight: bold;
+        border-radius: 50px;
+        height: 45px;
+        font-weight: 600;
+        border: none;
+        box-shadow: 0 4px 10px rgba(78, 84, 200, 0.3);
+        transition: transform 0.2s;
     }
+    .stButton>button:hover {
+        transform: scale(1.02);
+    }
+    
+    /* Card Style */
     .flashcard {
         background-color: white;
-        padding: 40px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         text-align: center;
-        border: 2px solid #f0f2f6;
-        min-height: 300px;
+        border: 1px solid #eee;
+        min-height: 350px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
     }
-    .term { font-size: 32px; font-weight: bold; color: #4e54c8; margin-bottom: 20px;}
-    .meaning { font-size: 20px; margin-bottom: 10px; color: #333;}
-    .vietnamese { font-size: 24px; font-weight: bold; color: #ff6b6b; margin-bottom: 15px;}
-    .example { font-size: 16px; font-style: italic; color: #666;}
-    .correct { color: #28a745; font-weight: bold; font-size: 18px; }
-    .wrong { color: #dc3545; font-weight: bold; font-size: 18px; }
+    
+    /* Typography */
+    .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 5px; margin-top: 10px; }
+    .term { font-size: 28px; font-weight: bold; color: #4e54c8; margin-bottom: 10px;}
+    .meaning { font-size: 18px; font-weight: 500; color: #333; margin-bottom: 10px;}
+    .vietnamese { font-size: 20px; font-weight: bold; color: #4e54c8; margin-bottom: 15px;}
+    .example { font-size: 15px; font-style: italic; color: #666;}
+    
+    /* Masked Word Style */
+    .masked-word {
+        font-family: 'Courier New', monospace;
+        font-size: 26px;
+        letter-spacing: 4px;
+        font-weight: bold;
+        color: #333;
+        margin: 20px 0;
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    /* Feedback */
+    .success-msg { color: #28a745; font-weight: bold; font-size: 18px; padding: 10px;}
+    .error-msg { color: #dc3545; font-weight: bold; font-size: 18px; padding: 10px;}
+    .hint-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 14px;}
     </style>
 """, unsafe_allow_html=True)
 
 # --- 2. SUPABASE CONNECTION ---
 @st.cache_resource
 def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
-    return create_client(url, key)
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+        return create_client(url, key)
+    except:
+        return None
 
 supabase = init_connection()
 
-# --- 3. DATA LOADING ---
-@st.cache_data(ttl=600) # Cache 10 phút để đỡ tốn quota
+# --- 3. DATA & LOGIC FUNCTIONS ---
+@st.cache_data(ttl=600)
 def load_vocab(unit_filter=None):
+    if not supabase: return []
     query = supabase.table("vocabulary").select("*")
     if unit_filter and unit_filter != "All":
         query = query.eq("unit", unit_filter)
     response = query.execute()
     return response.data
 
-# --- 4. SESSION STATE MANAGEMENT ---
-if 'vocab_list' not in st.session_state:
-    st.session_state.vocab_list = []
-if 'current_card' not in st.session_state:
-    st.session_state.current_card = None
-if 'flip_state' not in st.session_state:
-    st.session_state.flip_state = False
-if 'quiz_options' not in st.session_state:
-    st.session_state.quiz_options = []
+def normalize(text):
+    return " ".join(text.strip().lower().split())
 
-# --- 5. SIDEBAR ---
-with st.sidebar:
-    st.title("⚙️ Settings")
-    selected_unit = st.selectbox("Select Unit:", ["All", "Unit 2", "Unit 3"])
-    if st.button("Reload Data"):
-        st.cache_data.clear()
-        st.experimental_rerun()
+# Logic tạo từ bị đục lỗ (giống JS: 45% ký tự)
+def create_masked_term(term):
+    chars = list(term)
+    indices = [i for i, c in enumerate(chars) if c != ' ']
+    num_to_mask = int(len(term) * 0.45)
+    mask_indices = random.sample(indices, min(num_to_mask, len(indices)))
+    
+    masked_chars = []
+    for i, c in enumerate(chars):
+        if i in mask_indices:
+            masked_chars.append('_')
+        else:
+            masked_chars.append(c)
+    return masked_chars, mask_indices # Trả về mảng ký tự và danh sách vị trí bị ẩn
 
-# Load data based on selection
-data = load_vocab(selected_unit)
-if not st.session_state.vocab_list or len(st.session_state.vocab_list) != len(data):
-    st.session_state.vocab_list = data
-    random.shuffle(st.session_state.vocab_list)
+# --- 4. SESSION STATE INIT ---
+# Khởi tạo các biến để lưu trạng thái game
+keys_to_init = [
+    'vocab_list', 'current_card', 'flip', 
+    'ms_masked', 'ms_indices', 'ms_feedback', 'ms_key_counter', # State cho tab Missing
+    'ty_mistakes', 'ty_feedback', 'ty_key_counter', # State cho tab Typing
+    'qz_options', 'qz_feedback', 'qz_answered' # State cho tab Quiz
+]
+for key in keys_to_init:
+    if key not in st.session_state:
+        if 'counter' in key: st.session_state[key] = 0
+        elif 'indices' in key: st.session_state[key] = []
+        elif 'flip' in key: st.session_state[key] = False
+        else: st.session_state[key] = None
 
-# --- 6. HELPER FUNCTIONS ---
-def get_random_card():
-    if not st.session_state.vocab_list:
-        return None
-    return random.choice(st.session_state.vocab_list)
-
+# --- 5. CONTROLLER ---
 def next_card():
-    st.session_state.current_card = get_random_card()
-    st.session_state.flip_state = False
-    # Reset Quiz State
-    if st.session_state.current_card:
-        correct = st.session_state.current_card
-        wrongs = random.sample([v for v in st.session_state.vocab_list if v['id'] != correct['id']], 3)
-        options = [correct] + wrongs
-        random.shuffle(options)
-        st.session_state.quiz_options = options
+    if not st.session_state.vocab_list: return
+    
+    # Pick random card
+    new_card = random.choice(st.session_state.vocab_list)
+    st.session_state.current_card = new_card
+    
+    # Reset Flashcard
+    st.session_state.flip = False
+    
+    # Reset Missing Tab Logic
+    masked_chars, hidden_indices = create_masked_term(new_card['term'])
+    st.session_state.ms_masked = masked_chars
+    st.session_state.ms_indices = hidden_indices
+    st.session_state.ms_feedback = None
+    st.session_state.ms_key_counter += 1 # Trick để xóa ô input
+    
+    # Reset Typing Tab Logic
+    st.session_state.ty_mistakes = 0
+    st.session_state.ty_feedback = None
+    st.session_state.ty_key_counter += 1 # Trick để xóa ô input
+    
+    # Reset Quiz Tab Logic
+    correct = new_card
+    others = [v for v in st.session_state.vocab_list if v['term'] != correct['term']]
+    wrongs = random.sample(others, min(3, len(others)))
+    options = [correct] + wrongs
+    random.shuffle(options)
+    st.session_state.qz_options = options
+    st.session_state.qz_feedback = None
+    st.session_state.qz_answered = False
 
-# Init first card
-if st.session_state.current_card is None and st.session_state.vocab_list:
-    next_card()
+# Load Data lần đầu
+with st.sidebar:
+    st.title("Cài đặt")
+    unit = st.selectbox("Chọn bài học:", ["All", "Unit 2", "Unit 3"])
+    if st.button("Tải lại dữ liệu"):
+        st.cache_data.clear()
+        st.rerun()
 
-current = st.session_state.current_card
-
-# --- 7. MAIN UI ---
-st.title("📚 Business English Master")
-
-if not current:
-    st.error("No data found! Check Database connection.")
+data = load_vocab(unit)
+if data:
+    if st.session_state.vocab_list != data: # Nếu đổi unit hoặc data mới
+        st.session_state.vocab_list = data
+        next_card() # Init card đầu tiên
+else:
+    st.error("Chưa kết nối được Supabase hoặc không có dữ liệu!")
     st.stop()
 
-tab1, tab2, tab3 = st.tabs(["🎴 Flashcard", "✍️ Typing", "❓ Quiz"])
+card = st.session_state.current_card
+
+# --- 6. GIAO DIỆN CHÍNH (UI) ---
+st.title("Business English")
+
+# Tạo Tabs
+tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 
 # === TAB 1: FLASHCARD ===
 with tab1:
-    col1, col2, col3 = st.columns([1, 6, 1])
-    with col2:
-        # Card Container
-        with st.container():
-            if not st.session_state.flip_state:
-                # FRONT
-                st.markdown(f"""
-                <div class="flashcard">
-                    <div style="color: #aaa; text-transform: uppercase; font-size: 12px; margin-bottom: 10px;">TERM</div>
-                    <div class="term">{current['term']}</div>
-                    <div style="margin-top: 30px; font-size: 12px; color: #999;">(Tap 'Flip' to see meaning)</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                # BACK
-                st.markdown(f"""
-                <div class="flashcard">
-                    <div style="color: #aaa; text-transform: uppercase; font-size: 12px;">DEFINITION</div>
-                    <div class="meaning">{current['meaning']}</div>
-                    <div class="vietnamese">{current['vietnamese']}</div>
-                    <div style="color: #aaa; text-transform: uppercase; font-size: 12px; margin-top: 15px;">EXAMPLE</div>
-                    <div class="example">"{current['example']}"</div>
-                </div>
-                """, unsafe_allow_html=True)
+    # Container mô phỏng thẻ
+    with st.container():
+        if not st.session_state.flip:
+            # MẶT TRƯỚC
+            st.markdown(f"""
+            <div class="flashcard">
+                <div class="label">TERM</div>
+                <div class="term">{card['term']}</div>
+                <div style="margin-top:40px; color:#999; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # MẶT SAU (Giống HTML: EN -> VN -> Example)
+            st.markdown(f"""
+            <div class="flashcard">
+                <div class="label">DEFINITION (EN)</div>
+                <div class="meaning">{card['meaning']}</div>
+                
+                <div class="label">VIETNAMESE</div>
+                <div class="vietnamese">{card['vietnamese']}</div>
+                
+                <div class="label">EXAMPLE</div>
+                <div class="example">"{card['example']}"</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    col1, col2 = st.columns(2)
+    if col1.button("Flip", use_container_width=True):
+        st.session_state.flip = not st.session_state.flip
+        st.rerun()
+    if col2.button("Next", type="primary", use_container_width=True):
+        next_card()
+        st.rerun()
 
-        # Buttons
-        b_col1, b_col2 = st.columns(2)
-        with b_col1:
-            if st.button("🔄 Flip Card", use_container_width=True):
-                st.session_state.flip_state = not st.session_state.flip_state
-                st.rerun()
-        with b_col2:
-            if st.button("⏭️ Next Random", type="primary", use_container_width=True):
-                next_card()
-                st.rerun()
-
-# === TAB 2: TYPING ===
+# === TAB 2: MISSING LETTERS (Logic giống HTML) ===
 with tab2:
-    st.subheader("Type the correct term")
-    st.write(f"**Meaning:** {current['meaning']}")
-    st.write(f"**Vietnamese:** {current['vietnamese']}")
+    st.markdown(f"""
+    <div class="card">
+        <div class="label">DEFINITION</div>
+        <div style="font-weight:500; margin-bottom:5px;">{card['meaning']}</div>
+        <div style="font-style:italic; color:#666; margin-bottom:15px;">({card['vietnamese']})</div>
+        <div class="label">FILL IN THE BLANKS</div>
+        <div class="masked-word">{''.join(st.session_state.ms_masked)}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    user_input = st.text_input("Enter term:", key="typing_input")
+    # Input field với dynamic key để auto-clear
+    user_inp = st.text_input("Gõ từ đầy đủ:", key=f"ms_in_{st.session_state.ms_key_counter}")
     
-    if st.button("Check Answer"):
-        if user_input.strip().lower() == current['term'].lower():
-            st.markdown('<p class="correct">✅ CORRECT! Excellent!</p>', unsafe_allow_html=True)
+    # Feedback Area
+    if st.session_state.ms_feedback:
+        if "CORRECT" in st.session_state.ms_feedback:
+            st.markdown(f'<div class="success-msg">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="error-msg">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    
+    # Nút Check
+    if c1.button("Check", key="btn_ms_check"):
+        if normalize(user_inp) == normalize(card['term']):
+            st.session_state.ms_feedback = "Phương Thảo giỏi quá à"
             st.balloons()
         else:
-            st.markdown(f'<p class="wrong">❌ Incorrect. The answer is: <b>{current["term"]}</b></p>', unsafe_allow_html=True)
-
-    if st.button("Skip / Next Word"):
+            st.session_state.ms_feedback = "Thiếu dame ời bà!"
+        st.rerun()
+        
+    # Nút Hint (+1 char) - Logic quan trọng
+    if c2.button("Hint (+1 char)", key="btn_ms_hint"):
+        # Tìm các index còn đang là '_'
+        current_hidden = [i for i, char in enumerate(st.session_state.ms_masked) if char == '_']
+        if current_hidden:
+            # Lấy ngẫu nhiên 1 vị trí để mở
+            idx_to_reveal = random.choice(current_hidden)
+            st.session_state.ms_masked[idx_to_reveal] = card['term'][idx_to_reveal]
+            st.rerun()
+            
+    # Nút Skip
+    if c3.button("Skip", key="btn_ms_skip"):
         next_card()
         st.rerun()
 
-# === TAB 3: QUIZ ===
+# === TAB 3: HARDCORE TYPING (Logic giống HTML) ===
 with tab3:
-    st.subheader(f"What is the meaning of '{current['term']}'?")
+    # UI: VN to, EN nhỏ
+    st.markdown(f"""
+    <div class="card">
+        <div class="label">MEANING</div>
+        <div class="vietnamese">{card['vietnamese']}</div>
+        <div style="font-size:14px; color:#555; margin-bottom:20px;">{card['meaning']}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Radio needs a unique key based on the current card ID to reset properly
-    choice = st.radio(
-        "Select the correct definition:", 
-        options=[o['meaning'] for o in st.session_state.quiz_options],
-        key=f"quiz_{current['id']}" 
+    user_type = st.text_input("Nhập chính xác từ tiếng Anh:", key=f"ty_in_{st.session_state.ty_key_counter}")
+    
+    # Logic Sai 3 lần hiện gợi ý Context
+    if st.session_state.ty_mistakes >= 3:
+        st.markdown(f"""
+        <div class="hint-box">
+            <strong>💡 Context Hint:</strong> {card['example']}
+        </div>
+        """, unsafe_allow_html=True)
+        
+    if st.session_state.ty_feedback:
+        color = "success-msg" if "EXCELLENT" in st.session_state.ty_feedback else "error-msg"
+        st.markdown(f'<div class="{color}">{st.session_state.ty_feedback}</div>', unsafe_allow_html=True)
+
+    tc1, tc2 = st.columns(2)
+    if tc1.button("Submit", key="btn_ty_submit", type="primary"):
+        if normalize(user_type) == normalize(card['term']):
+            st.session_state.ty_feedback = "🎉 EXCELLENT!"
+            st.balloons()
+        else:
+            st.session_state.ty_mistakes += 1
+            st.session_state.ty_feedback = "⚠️ Incorrect. Try again."
+        st.rerun()
+        
+    if tc2.button("Skip Word", key="btn_ty_skip"):
+        next_card()
+        st.rerun()
+
+# === TAB 4: QUIZ ===
+with tab4:
+    st.markdown(f"""
+    <div style="margin-bottom: 20px;">
+        <div class="label">QUESTION</div>
+        <div style="font-size: 18px; font-weight: bold;">What is the meaning of "<span style="color:#4e54c8">{card['term']}</span>"?</div>
+        <div style="font-size: 14px; color: #666; font-style:italic;">(Vietnamese: {card['vietnamese']})</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Hiển thị Options
+    # Dùng radio nhưng custom lại label để hiển thị full text
+    answer = st.radio(
+        "Choose the correct answer:",
+        st.session_state.qz_options,
+        format_func=lambda x: x['meaning'],
+        key=f"qz_rad_{st.session_state.ty_key_counter}", # Reset khi next card
+        index=None
     )
     
-    if st.button("Submit Answer"):
-        if choice == current['meaning']:
-            st.success("🎉 Correct! You nailed it!")
-            st.markdown(f"**Vietnamese:** {current['vietnamese']}")
+    if st.button("Confirm Answer", key="btn_qz_confirm", disabled=st.session_state.qz_answered):
+        if answer:
+            st.session_state.qz_answered = True
+            if answer['term'] == card['term']:
+                st.session_state.qz_feedback = "correct"
+                st.balloons()
+            else:
+                st.session_state.qz_feedback = "wrong"
+            st.rerun()
+
+    if st.session_state.qz_answered:
+        if st.session_state.qz_feedback == "correct":
+             st.success("Ăn tết hông làm bà mai một he.")
         else:
-            st.error("💥 Wrong answer!")
-            st.info(f"Correct meaning: {current['meaning']}")
-            
-    if st.button("Next Question"):
-        next_card()
-        st.rerun()
+             st.error(f"Nope, its mean is: {card['meaning']}")
+        
+        if st.button("Câu tiếp theo ->"):
+            next_card()
+            st.rerun()
