@@ -5,8 +5,21 @@ import random
 # --- 1. SETUP & CONFIG ---
 st.set_page_config(page_title="Vocab cho cổ", page_icon="🌸", layout="centered")
 
+# Định nghĩa theme mặc định
+default_theme = {
+    "card_bg": "#ffffff",
+    "text_main": "#333333",
+    "text_sub": "#555555",
+    "input_bg": "#f8f9fa",
+    "shadow": "rgba(0,0,0,0.1)",
+    "border": "#f0f2f6"
+}
+if 'theme' not in st.session_state:
+    st.session_state.theme = default_theme
+
 # CSS: Đã đẩy sát lề trái để tránh lỗi hiển thị code
-st.markdown("""
+theme = st.session_state.theme
+st.markdown(f"""
 <style>
     /* Biến màu sắc */
     :root {
@@ -31,19 +44,28 @@ st.markdown("""
     }
     
     /* Card Style */
-    .flashcard {
-        background-color: white;
+    .flashcard {{
+        background-color: {theme['card_bg']};
         padding: 40px;
         border-radius: 20px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 30px {theme['shadow']};
         text-align: center;
-        border: 2px solid #f0f2f6;
+        border: 2px solid {theme['border']};
         min-height: 450px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-    }
+    }}
+    
+    .card {{
+        background-color: {theme['card_bg']};
+        padding: 30px;
+        border-radius: 20px;
+        box-shadow: 0 8px 30px {theme['shadow']};
+        text-align: center;
+        border: 2px solid {theme['border']};
+    }}
     
     /* Typography */
     .label { 
@@ -64,13 +86,13 @@ st.markdown("""
         line-height: 1.2;
     }
     
-    .meaning { 
+    .meaning {{ 
         font-size: 28px !important;
         font-weight: 500; 
-        color: #333; 
+        color: {theme['text_main']}; 
         margin-bottom: 15px;
         line-height: 1.4;
-    }
+    }}
     
     .vietnamese { 
         font-size: 35px !important;
@@ -79,25 +101,25 @@ st.markdown("""
         margin-bottom: 25px;
     }
     
-    .example { 
+    .example {{ 
         font-size: 22px !important;
         font-style: italic; 
-        color: #555;
+        color: {theme['text_sub']};
         line-height: 1.5;
-    }
+    }}
     
     /* Masked Word Style */
-    .masked-word {
+    .masked-word {{
         font-family: 'Courier New', monospace;
         font-size: 40px;
         letter-spacing: 8px;
         font-weight: bold;
-        color: #333;
+        color: {theme['text_main']};
         margin: 30px 0;
-        background: #f8f9fa;
+        background: {theme['input_bg']};
         padding: 20px;
         border-radius: 12px;
-    }
+    }}
 
     /* Feedback */
     .success-msg { color: #28a745; font-weight: bold; font-size: 24px; padding: 15px;}
@@ -186,10 +208,39 @@ def next_card():
     st.session_state.qz_answered = False
 
 # Load Data
-# Load Data
 with st.sidebar:
     st.title("Cài đặt")
-    
+    # Nút gạt chế độ tối
+    dark_mode = st.toggle("🌙 Chế độ ban đêm")
+
+# Định nghĩa màu sắc dựa trên chế độ
+if dark_mode:
+    # Màu cho chế độ tối (Dark Mode)
+    new_theme = {
+        "card_bg": "#262730",       # Màu nền thẻ (Xám đậm)
+        "text_main": "#ffffff",     # Chữ chính (Trắng)
+        "text_sub": "#e0e0e0",      # Chữ phụ (Xám nhạt)
+        "input_bg": "#31333F",      # Nền ô điền từ
+        "shadow": "rgba(255,255,255,0.05)", # Bóng mờ nhẹ
+        "border": "#444444"         # Viền thẻ
+    }
+else:
+    # Màu cho chế độ sáng (Light Mode - Mặc định)
+    new_theme = {
+        "card_bg": "#ffffff",
+        "text_main": "#333333",
+        "text_sub": "#555555",
+        "input_bg": "#f8f9fa",
+        "shadow": "rgba(0,0,0,0.1)",
+        "border": "#f0f2f6"
+    }
+
+# Cập nhật theme và rerun nếu thay đổi
+if st.session_state.theme != new_theme:
+    st.session_state.theme = new_theme
+    st.rerun()
+
+with st.sidebar:
     # 1. Định nghĩa tên hiển thị cho đẹp (Mapping)
     unit_labels = {
         "All": "Tất cả các từ (All Units)",
