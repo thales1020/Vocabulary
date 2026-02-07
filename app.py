@@ -15,12 +15,13 @@ with st.sidebar:
 if dark_mode:
     theme = {
         "bg_color": "#0E1117",      # Màu nền TOÀN BỘ WEB (Đen sâu)
-        "card_bg": "#1E1E1E",       # Màu nền thẻ (Xám đen - sáng hơn nền web xíu)
+        "card_bg": "#1E1E1E",       # Màu nền thẻ (Xám đen)
         "text_main": "#FFFFFF",     # Chữ chính (Trắng)
         "text_sub": "#B0B0B0",      # Chữ phụ (Xám sáng)
-        "input_bg": "#262730",      # Nền ô nhập liệu
+        "input_bg": "#262730",      # Nền ô nhập liệu / Nền nút
         "border": "#444444",        # Viền thẻ
-        "shadow": "rgba(0,0,0,0.5)" # Bóng đổ đậm hơn cho dark mode
+        "shadow": "rgba(0,0,0,0.5)",# Bóng đổ đậm
+        "button_text": "#FFFFFF"    # Màu chữ trên nút
     }
 else:
     theme = {
@@ -28,63 +29,61 @@ else:
         "card_bg": "#ffffff",       # Màu nền thẻ (Trắng)
         "text_main": "#333333",     # Chữ chính (Đen)
         "text_sub": "#555555",      # Chữ phụ (Xám)
-        "input_bg": "#f8f9fa",      # Nền ô nhập liệu
+        "input_bg": "#f8f9fa",      # Nền ô nhập liệu / Nền nút
         "border": "#f0f2f6",        # Viền thẻ
-        "shadow": "rgba(0,0,0,0.1)" # Bóng đổ nhẹ
+        "shadow": "rgba(0,0,0,0.1)",# Bóng đổ nhẹ
+        "button_text": "#333333"    # Màu chữ trên nút
     }
 
-# --- 3. CSS ĐỘNG (Áp dụng cho toàn bộ web) ---
+# --- 3. CSS ĐỘNG (ĐÃ FIX LỖI MẤT CHỮ) ---
 st.markdown(f"""
 <style>
-    /* 1. ĐỔI MÀU NỀN TOÀN BỘ WEB (Quan trọng nhất) */
+    /* 1. ĐỔI MÀU NỀN TOÀN BỘ WEB */
     .stApp {{
         background-color: {theme['bg_color']};
         color: {theme['text_main']};
     }}
     
-    /* Đổi màu header (thanh trên cùng) nếu có */
     header[data-testid="stHeader"] {{
         background-color: {theme['bg_color']};
     }}
 
-    /* 2. CẤU HÌNH INPUT & RADIO BUTTON CHO DARK MODE */
-    /* Chữ trong ô input */
+    /* 2. CẤU HÌNH INPUT & RADIO BUTTON */
     .stTextInput > div > div > input {{
         color: {theme['text_main']};
         background-color: {theme['input_bg']};
     }}
-    /* Chữ trong Radio button (Quiz) */
     .stRadio label {{
         color: {theme['text_main']} !important;
     }}
-    /* Tiêu đề các Tab */
     .stTabs [data-baseweb="tab"] {{
         color: {theme['text_main']};
     }}
 
-    /* 3. CÁC STYLE CŨ (Thẻ, Nút bấm...) */
-    :root {{
-        --primary: #4e54c8;
-        --secondary: #8f94fb;
-        --success: #28a745;
-        --error: #dc3545;
-    }}
-    
+    /* 3. STYLE CHO NÚT BẤM (BUTTON) - ĐÃ FIX */
     .stButton>button {{
         width: 100%;
         border-radius: 50px;
         height: 50px;
         font-weight: 700;
         font-size: 20px;
-        border: none;
+        
+        /* FIX: Gán màu động từ theme */
+        color: {theme['button_text']} !important; 
+        background-color: {theme['input_bg']} !important; 
+        border: 1px solid {theme['border']} !important;
+        
         box-shadow: 0 4px 10px rgba(78, 84, 200, 0.3);
-        transition: transform 0.2s;
-    }}
-    .stButton>button:hover {{
-        transform: scale(1.02);
+        transition: all 0.2s;
     }}
     
-    /* Card Style - Dùng biến màu động */
+    .stButton>button:hover {{
+        transform: scale(1.02);
+        border-color: #4e54c8 !important;
+        color: #4e54c8 !important; /* Khi di chuột vào sẽ sáng màu lên */
+    }}
+    
+    /* Card Style */
     .flashcard {{
         background-color: {theme['card_bg']};
         color: {theme['text_main']};
@@ -100,7 +99,6 @@ st.markdown(f"""
         align-items: center;
     }}
     
-    /* Container Card cho Missing/Typing/Quiz */
     .card {{
         background-color: {theme['card_bg']};
         color: {theme['text_main']};
@@ -117,7 +115,7 @@ st.markdown(f"""
         font-size: 14px; 
         text-transform: uppercase; 
         letter-spacing: 2px; 
-        color: #aaa; 
+        color: {theme['text_sub']}; 
         margin-bottom: 10px; 
         margin-top: 20px; 
         font-weight: 600;
@@ -256,7 +254,6 @@ def next_card():
 
 # Load Data & Sidebar
 with st.sidebar:
-    # 1. Định nghĩa tên hiển thị cho đẹp (Mapping)
     unit_labels = {
         "All": "Tất cả các từ (All Units)",
         "Unit 2": "Unit 2 - Business Terms",
@@ -276,7 +273,7 @@ with st.sidebar:
         format_func=lambda x: unit_labels.get(x, x)
     )
     
-    if st.button("Reload data(để chơi th chứ khỏi bấm:))"):
+    if st.button("Reload data"):
         st.cache_data.clear()
         st.rerun()
     
@@ -291,7 +288,7 @@ if data:
         st.session_state.ms_key_counter += 1
         st.session_state.ty_key_counter += 1
 else:
-    st.error("Bà chưa gửi tui mà bà đòi học hả?")
+    st.error("Chưa kết nối được dữ liệu!")
     st.stop()
 
 card = st.session_state.current_card
@@ -305,16 +302,14 @@ tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 with tab1:
     with st.container():
         if not st.session_state.flip:
-            # MẶT TRƯỚC (Giữ nguyên lề trái)
             st.markdown(f"""
 <div class="flashcard">
     <div class="label">TERM</div>
     <div class="term">{card['term']}</div>
-    <div style="margin-top:40px; color:#aaa; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
+    <div style="margin-top:40px; color:{theme['text_sub']}; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
 </div>
 """, unsafe_allow_html=True)
         else:
-            # MẶT SAU (Giữ nguyên lề trái)
             st.markdown(f"""
 <div class="flashcard">
     <div class="label">DEFINITION (EN)</div>
@@ -413,7 +408,6 @@ with tab3:
 
 # === TAB 4: QUIZ ===
 with tab4:
-    # Tôi đã thêm class="card" vào đây để nó nhận màu nền Đen/Trắng theo chế độ
     st.markdown(f"""
 <div class="card" style="margin-bottom: 20px;">
     <div class="label">QUESTION</div>
