@@ -235,10 +235,10 @@ with tab1:
 """, unsafe_allow_html=True)
             
     col1, col2 = st.columns(2)
-    if col1.button("🔄 Lật thẻ", use_container_width=True):
+    if col1.button(" Flip", use_container_width=True):
         st.session_state.flip = not st.session_state.flip
         st.rerun()
-    if col2.button("➡️ Từ tiếp theo", type="primary", use_container_width=True):
+    if col2.button("Next", type="primary", use_container_width=True):
         next_card()
         st.rerun()
 
