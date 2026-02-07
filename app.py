@@ -5,31 +5,46 @@ import random
 # --- 1. SETUP & CONFIG ---
 st.set_page_config(page_title="Vocab cho cổ", page_icon="🌸", layout="centered")
 
-# Định nghĩa theme mặc định
-default_theme = {
-    "card_bg": "#ffffff",
-    "text_main": "#333333",
-    "text_sub": "#555555",
-    "input_bg": "#f8f9fa",
-    "shadow": "rgba(0,0,0,0.1)",
-    "border": "#f0f2f6"
-}
-if 'theme' not in st.session_state:
-    st.session_state.theme = default_theme
+# --- 2. THEME SETTINGS (CHẾ ĐỘ BAN ĐÊM) ---
+with st.sidebar:
+    st.title("Cài đặt")
+    # Nút gạt chế độ tối
+    dark_mode = st.toggle("🌙 Chế độ ban đêm")
 
-# CSS: Đã đẩy sát lề trái để tránh lỗi hiển thị code
-theme = st.session_state.theme
+# Định nghĩa bảng màu (Theme)
+if dark_mode:
+    theme = {
+        "bg_color": "#262730",      # Màu nền chính của app (cho thẻ)
+        "card_bg": "#1E1E1E",       # Màu nền thẻ (Đen xám)
+        "text_main": "#FFFFFF",     # Chữ chính (Trắng)
+        "text_sub": "#B0B0B0",      # Chữ phụ (Xám sáng)
+        "input_bg": "#333333",      # Nền ô nhập liệu
+        "border": "#444444",        # Viền thẻ
+        "shadow": "rgba(255,255,255,0.05)" # Bóng mờ (nhẹ)
+    }
+else:
+    theme = {
+        "bg_color": "#ffffff",
+        "card_bg": "#ffffff",
+        "text_main": "#333333",
+        "text_sub": "#555555",
+        "input_bg": "#f8f9fa",
+        "border": "#f0f2f6",
+        "shadow": "rgba(0,0,0,0.1)"
+    }
+
+# --- 3. CSS ĐỘNG (Dựa trên theme) ---
 st.markdown(f"""
 <style>
-    /* Biến màu sắc */
-    :root {
+    /* Biến màu sắc toàn cục */
+    :root {{
         --primary: #4e54c8;
         --secondary: #8f94fb;
         --success: #28a745;
         --error: #dc3545;
-    }
+    }}
     
-    .stButton>button {
+    .stButton>button {{
         width: 100%;
         border-radius: 50px;
         height: 50px;
@@ -38,14 +53,15 @@ st.markdown(f"""
         border: none;
         box-shadow: 0 4px 10px rgba(78, 84, 200, 0.3);
         transition: transform 0.2s;
-    }
-    .stButton>button:hover {
+    }}
+    .stButton>button:hover {{
         transform: scale(1.02);
-    }
+    }}
     
-    /* Card Style */
+    /* Card Style - Dùng biến màu động */
     .flashcard {{
         background-color: {theme['card_bg']};
+        color: {theme['text_main']};
         padding: 40px;
         border-radius: 20px;
         box-shadow: 0 8px 30px {theme['shadow']};
@@ -58,17 +74,20 @@ st.markdown(f"""
         align-items: center;
     }}
     
+    /* Container Card cho Missing/Typing/Quiz */
     .card {{
         background-color: {theme['card_bg']};
+        color: {theme['text_main']};
         padding: 30px;
         border-radius: 20px;
-        box-shadow: 0 8px 30px {theme['shadow']};
-        text-align: center;
         border: 2px solid {theme['border']};
+        box-shadow: 0 4px 15px {theme['shadow']};
+        margin-bottom: 20px;
+        text-align: center;
     }}
-    
+
     /* Typography */
-    .label { 
+    .label {{ 
         font-size: 14px; 
         text-transform: uppercase; 
         letter-spacing: 2px; 
@@ -76,15 +95,16 @@ st.markdown(f"""
         margin-bottom: 10px; 
         margin-top: 20px; 
         font-weight: 600;
-    }
+    }}
     
-    .term { 
+    .term {{ 
         font-size: 60px !important;
         font-weight: 900; 
         color: #4e54c8; 
         margin-bottom: 20px;
         line-height: 1.2;
-    }
+        text-shadow: 1px 1px 2px {theme['shadow']};
+    }}
     
     .meaning {{ 
         font-size: 28px !important;
@@ -94,12 +114,12 @@ st.markdown(f"""
         line-height: 1.4;
     }}
     
-    .vietnamese { 
+    .vietnamese {{ 
         font-size: 35px !important;
         font-weight: bold; 
         color: #ff6b6b; 
         margin-bottom: 25px;
-    }
+    }}
     
     .example {{ 
         font-size: 22px !important;
@@ -119,16 +139,17 @@ st.markdown(f"""
         background: {theme['input_bg']};
         padding: 20px;
         border-radius: 12px;
+        border: 1px solid {theme['border']};
     }}
 
     /* Feedback */
-    .success-msg { color: #28a745; font-weight: bold; font-size: 24px; padding: 15px;}
-    .error-msg { color: #dc3545; font-weight: bold; font-size: 24px; padding: 15px;}
-    .hint-box { background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 18px;}
+    .success-msg {{ color: #28a745; font-weight: bold; font-size: 24px; padding: 15px; text-shadow: 0 0 10px rgba(40, 167, 69, 0.2); }}
+    .error-msg {{ color: #dc3545; font-weight: bold; font-size: 24px; padding: 15px; text-shadow: 0 0 10px rgba(220, 53, 69, 0.2); }}
+    .hint-box {{ background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 18px; }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. SUPABASE CONNECTION ---
+# --- 4. SUPABASE CONNECTION ---
 @st.cache_resource
 def init_connection():
     try:
@@ -140,7 +161,7 @@ def init_connection():
 
 supabase = init_connection()
 
-# --- 3. DATA & LOGIC FUNCTIONS ---
+# --- 5. DATA & LOGIC FUNCTIONS ---
 @st.cache_data(ttl=600)
 def load_vocab(unit_filter=None):
     if not supabase: return []
@@ -167,7 +188,7 @@ def create_masked_term(term):
             masked_chars.append(c)
     return masked_chars, mask_indices
 
-# --- 4. SESSION STATE INIT ---
+# --- 6. SESSION STATE INIT ---
 keys_to_init = [
     'vocab_list', 'current_card', 'flip', 
     'ms_masked', 'ms_indices', 'ms_feedback', 'ms_key_counter', 
@@ -181,7 +202,7 @@ for key in keys_to_init:
         elif 'flip' in key: st.session_state[key] = False
         else: st.session_state[key] = None
 
-# --- 5. CONTROLLER ---
+# --- 7. CONTROLLER ---
 def next_card():
     if not st.session_state.vocab_list: return
     new_card = random.choice(st.session_state.vocab_list)
@@ -207,39 +228,7 @@ def next_card():
     st.session_state.qz_feedback = None
     st.session_state.qz_answered = False
 
-# Load Data
-with st.sidebar:
-    st.title("Cài đặt")
-    # Nút gạt chế độ tối
-    dark_mode = st.toggle("🌙 Night shift")
-
-# Định nghĩa màu sắc dựa trên chế độ
-if dark_mode:
-    # Màu cho chế độ tối (Dark Mode)
-    new_theme = {
-        "card_bg": "#262730",       # Màu nền thẻ (Xám đậm)
-        "text_main": "#ffffff",     # Chữ chính (Trắng)
-        "text_sub": "#e0e0e0",      # Chữ phụ (Xám nhạt)
-        "input_bg": "#31333F",      # Nền ô điền từ
-        "shadow": "rgba(255,255,255,0.05)", # Bóng mờ nhẹ
-        "border": "#444444"         # Viền thẻ
-    }
-else:
-    # Màu cho chế độ sáng (Light Mode - Mặc định)
-    new_theme = {
-        "card_bg": "#ffffff",
-        "text_main": "#333333",
-        "text_sub": "#555555",
-        "input_bg": "#f8f9fa",
-        "shadow": "rgba(0,0,0,0.1)",
-        "border": "#f0f2f6"
-    }
-
-# Cập nhật theme và rerun nếu thay đổi
-if st.session_state.theme != new_theme:
-    st.session_state.theme = new_theme
-    st.rerun()
-
+# Load Data & Sidebar
 with st.sidebar:
     # 1. Định nghĩa tên hiển thị cho đẹp (Mapping)
     unit_labels = {
@@ -253,45 +242,35 @@ with st.sidebar:
         "Unit 8": "Unit 8 - Business Terms",
         "Unit 9": "Unit 9 - Business Terms",
         "Unit 10": "Unit 10 - Business Terms",
-        
     }
     
-    # 2. Hộp chọn thông minh
-    # - options: Danh sách các key ["All", "Unit 2", "Unit 3", "Unit 4"] để gửi xuống Database
-    # - format_func: Hàm biến đổi key thành tên đẹp để hiển thị ra màn hình
     unit = st.selectbox(
         "Choose unit:",
         options=list(unit_labels.keys()), 
-        format_func=lambda x: unit_labels[x] 
+        format_func=lambda x: unit_labels.get(x, x)
     )
     
-    # Nút tải lại
     if st.button("Reload data(để chơi th chứ khỏi bấm:))"):
         st.cache_data.clear()
         st.rerun()
     
-    # Hiển thị thống kê nhỏ
     st.markdown("---")
-    st.caption(f"Now is on: **{unit_labels[unit]}**")
+    st.caption(f"Now is on: **{unit_labels.get(unit, unit)}**")
 
-# Gọi hàm load data với giá trị 'unit' (là "Unit 2", "Unit 3"...) chứ không phải tên dài
 data = load_vocab(unit)
-
 if data:
     if st.session_state.vocab_list != data:
         st.session_state.vocab_list = data
         next_card()
-        # Reset lại các biến đếm khi đổi bài để tránh lỗi index
         st.session_state.ms_key_counter += 1
         st.session_state.ty_key_counter += 1
-        st.rerun()
 else:
     st.error("Bà chưa gửi tui mà bà đòi học hả?")
     st.stop()
 
 card = st.session_state.current_card
 
-# --- 6. GIAO DIỆN CHÍNH (UI) ---
+# --- 8. GIAO DIỆN CHÍNH (UI) ---
 st.title("Business English")
 
 tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
@@ -300,16 +279,16 @@ tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 with tab1:
     with st.container():
         if not st.session_state.flip:
-            # MẶT TRƯỚC (Đã đẩy sát lề trái)
+            # MẶT TRƯỚC (Giữ nguyên lề trái)
             st.markdown(f"""
 <div class="flashcard">
     <div class="label">TERM</div>
     <div class="term">{card['term']}</div>
-    <div style="margin-top:40px; color:#999; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
+    <div style="margin-top:40px; color:#aaa; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
 </div>
 """, unsafe_allow_html=True)
         else:
-            # MẶT SAU (Đã đẩy sát lề trái)
+            # MẶT SAU (Giữ nguyên lề trái)
             st.markdown(f"""
 <div class="flashcard">
     <div class="label">DEFINITION (EN)</div>
@@ -331,12 +310,11 @@ with tab1:
 
 # === TAB 2: MISSING LETTERS ===
 with tab2:
-    # Đã đẩy sát lề trái
     st.markdown(f"""
 <div class="card">
     <div class="label">DEFINITION</div>
-    <div style="font-weight:500; margin-bottom:5px;">{card['meaning']}</div>
-    <div style="font-style:italic; color:#666; margin-bottom:15px;">({card['vietnamese']})</div>
+    <div class="meaning" style="font-size: 24px !important;">{card['meaning']}</div>
+    <div class="example">({card['vietnamese']})</div>
     <div class="label">FILL IN THE BLANKS</div>
     <div class="masked-word">{''.join(st.session_state.ms_masked)}</div>
 </div>
@@ -372,12 +350,11 @@ with tab2:
 
 # === TAB 3: TYPING ===
 with tab3:
-    # Đã đẩy sát lề trái
     st.markdown(f"""
 <div class="card">
     <div class="label">MEANING</div>
     <div class="vietnamese">{card['vietnamese']}</div>
-    <div style="font-size:14px; color:#555; margin-bottom:20px;">{card['meaning']}</div>
+    <div class="meaning" style="font-size: 20px !important;">{card['meaning']}</div>
 </div>
 """, unsafe_allow_html=True)
     
@@ -410,12 +387,12 @@ with tab3:
 
 # === TAB 4: QUIZ ===
 with tab4:
-    # Đã đẩy sát lề trái
+    # Tôi đã thêm class="card" vào đây để nó nhận màu nền Đen/Trắng theo chế độ
     st.markdown(f"""
-<div style="margin-bottom: 20px;">
+<div class="card" style="margin-bottom: 20px;">
     <div class="label">QUESTION</div>
-    <div style="font-size: 18px; font-weight: bold;">What is the meaning of "<span style="color:#4e54c8">{card['term']}</span>"?</div>
-    <div style="font-size: 14px; color: #666; font-style:italic;">(Vietnamese: {card['vietnamese']})</div>
+    <div style="font-size: 22px; font-weight: bold; color: {theme['text_main']};">What is the meaning of "<span style="color:#4e54c8">{card['term']}</span>"?</div>
+    <div style="font-size: 16px; color: {theme['text_sub']}; font-style:italic;">(Vietnamese: {card['vietnamese']})</div>
 </div>
 """, unsafe_allow_html=True)
     
