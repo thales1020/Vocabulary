@@ -256,11 +256,12 @@ def next_card():
 with st.sidebar:
     unit_labels = {
         "All": "Tất cả các từ (All Units)",
+        "Unit 1": "Unit 1 - Terms",
         "Unit 2": "Unit 2 - Business Terms",
         "Unit 3": "Unit 3 - Business Terms",
         "Unit 4": "Unit 4 - Business Terms",
-        "Unit 5": "Unit 5 - Business Terms",
-        "Unit 6": "Unit 6 - Business Terms",
+        "Unit 5": "Unit 5 - Terms",
+        "Unit 6": "Unit 6 - Terms",
         "Unit 7": "Unit 7 - Business Terms",
         "Unit 8": "Unit 8 - Business Terms",
         "Unit 9": "Unit 9 - Business Terms",
