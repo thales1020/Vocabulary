@@ -1,6 +1,7 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client
 import random
+import time
 
 # --- 1. SETUP & CONFIG ---
 st.set_page_config(page_title="Vocab cho cổ", layout="centered")
@@ -8,7 +9,7 @@ st.set_page_config(page_title="Vocab cho cổ", layout="centered")
 # --- 2. THEME SETTINGS ---
 with st.sidebar:
     st.title("Cài đặt")
-    dark_mode = st.toggle("Dark mode")
+    dark_mode = st.toggle("Dark mode", value=True)
 
 if dark_mode:
     theme = {
@@ -38,6 +39,14 @@ st.markdown(f"""
     }}
     .stButton>button:hover {{ transform: scale(1.02); border-color: {theme['highlight']} !important; color: {theme['highlight']} !important; }}
     
+    /* Style riêng cho nút nhỏ trong sidebar */
+    div[data-testid="stSidebar"] .stButton>button {{
+        height: auto !important;
+        font-size: 14px !important;
+        padding: 5px 10px !important;
+        border-radius: 8px !important;
+    }}
+
     .flashcard {{
         background-color: {theme['card_bg']}; color: {theme['text_main']}; padding: 40px;
         border-radius: 20px; box-shadow: 0 8px 30px {theme['shadow']}; text-align: center;
@@ -79,6 +88,7 @@ def load_learning_vocab(unit_filter=None):
     """Chỉ tải những từ CHƯA thuộc (is_known = False)"""
     if not supabase: return []
     
+    # Lọc is_known = False
     query = supabase.table("vocabulary").select("*").eq("is_known", False)
     
     if unit_filter and unit_filter != "All":
@@ -87,20 +97,36 @@ def load_learning_vocab(unit_filter=None):
     response = query.execute()
     return response.data
 
-def mark_as_known(term_id):
-    """Cập nhật trạng thái đã thuộc lên database"""
+def get_known_vocab_grouped():
+    """Lấy danh sách từ ĐÃ thuộc (is_known = True) và nhóm theo Unit"""
+    if not supabase: return {}
+    
+    response = supabase.table("vocabulary").select("*").eq("is_known", True).order('unit').execute()
+    data = response.data
+    
+    # Nhóm data theo Unit
+    grouped = {}
+    for item in data:
+        u = item.get('unit', 'Unknown Unit')
+        if u not in grouped:
+            grouped[u] = []
+        grouped[u].append(item)
+    return grouped
+
+def mark_as_known_db(term_id):
+    """Cập nhật trạng thái đã thuộc (TRUE) lên database"""
     if supabase:
         supabase.table("vocabulary").update({"is_known": True}).eq("id", term_id).execute()
 
-def reset_progress(unit_filter=None):
-    """Reset trạng thái học lại từ đầu"""
+def mark_as_unknown_db(term_id):
+    """Cập nhật trạng thái chưa thuộc (FALSE) - Học lại"""
     if supabase:
-        query = supabase.table("vocabulary").update({"is_known": False})
-        if unit_filter and unit_filter != "All":
-            query = query.eq("unit", unit_filter)
-        else:
-            query = query.neq("id", 0) # Hack để update all
-        query.execute()
+        supabase.table("vocabulary").update({"is_known": False}).eq("id", term_id).execute()
+
+def reset_unit_db(unit_name):
+    """Reset toàn bộ Unit về chưa thuộc"""
+    if supabase:
+        supabase.table("vocabulary").update({"is_known": False}).eq("unit", unit_name).execute()
 
 def normalize(text):
     return " ".join(text.strip().lower().split())
@@ -109,6 +135,9 @@ def create_masked_term(term):
     chars = list(term)
     indices = [i for i, c in enumerate(chars) if c != ' ']
     num_to_mask = int(len(term) * 0.45)
+    # Đảm bảo mask ít nhất 1 ký tự nếu từ ngắn
+    if num_to_mask == 0 and len(indices) > 0: num_to_mask = 1
+    
     mask_indices = random.sample(indices, min(num_to_mask, len(indices)))
     masked_chars = ['_' if i in mask_indices else c for i, c in enumerate(chars)]
     return masked_chars, mask_indices
@@ -149,7 +178,6 @@ def next_card():
     st.session_state.ty_key_counter += 1
     
     correct = new_card
-    # Lấy đáp án sai (có thể lấy từ toàn bộ database để khó hơn, nhưng ở đây lấy trong list hiện tại)
     others = [v for v in st.session_state.vocab_list if v['term'] != correct['term']]
     wrongs = random.sample(others, min(3, len(others))) if len(others) >= 3 else others
     options = [correct] + wrongs
@@ -167,41 +195,70 @@ with st.sidebar:
         "Unit 7": "Unit 7", "Unit 8": "Unit 8", "Unit 9": "Unit 9", "Unit 10": "Unit 10",
     }
     
-    unit = st.selectbox("Chọn bài:", list(unit_labels.keys()), format_func=lambda x: unit_labels.get(x, x))
+    # Selector cho phần HỌC
+    unit = st.selectbox("Chọn bài để học:", list(unit_labels.keys()), format_func=lambda x: unit_labels.get(x, x))
     
-    if st.button("Tải lại dữ liệu"):
+    if st.button("🔄 Tải lại dữ liệu"):
         st.cache_data.clear()
+        st.session_state.vocab_list = None
         st.rerun()
         
     st.markdown("---")
     
-    # === QUẢN LÝ TỪ VỰNG ===
-    st.write("📊 **Quản lý học tập**")
-    if st.button("Reset (Học lại từ đầu)"):
-        reset_progress(unit)
-        st.success(f"Đã reset trạng thái học cho {unit}")
-        st.cache_data.clear()
-        st.rerun()
+    # === QUẢN LÝ TỪ ĐÃ THUỘC (THEO UNIT) ===
+    st.markdown("### 🏆 Đã thuộc")
+    known_grouped = get_known_vocab_grouped()
+    
+    if not known_grouped:
+        st.caption("Chưa có từ nào đã thuộc.")
+    else:
+        for u_name, words in known_grouped.items():
+            # Dùng Expander để gom nhóm
+            with st.expander(f"{u_name} ({len(words)} từ)"):
+                # Nút Reset All cho Unit
+                if st.button(f"Reset {u_name}", key=f"rst_u_{u_name}", type="primary"):
+                    reset_unit_db(u_name)
+                    st.toast(f"Đã reset {u_name}. Vào 'Chọn bài' để học lại.", icon="✅")
+                    st.cache_data.clear()
+                    st.session_state.vocab_list = None
+                    time.sleep(0.5)
+                    st.rerun()
+                
+                st.markdown("---")
+                # List từng từ
+                for w in words:
+                    c1, c2 = st.columns([2, 1])
+                    with c1:
+                        st.markdown(f"**{w['term']}**")
+                        st.caption(w['vietnamese'])
+                    with c2:
+                        if st.button("Học lại", key=f"rst_w_{w['id']}"):
+                            mark_as_unknown_db(w['id'])
+                            st.toast(f"Đã đưa '{w['term']}' về danh sách học.")
+                            # Refresh state nếu đang học unit này
+                            st.session_state.vocab_list = None
+                            time.sleep(0.5)
+                            st.rerun()
+                    st.markdown("---")
 
-# Load Data logic (Mỗi lần rerun sẽ fetch lại list chưa thuộc)
-data = load_learning_vocab(unit)
-st.session_state.vocab_list = data
 
-if st.session_state.current_card is None or st.session_state.current_card not in data:
-     next_card()
+# Load Data logic (Fetch list chưa thuộc)
+if st.session_state.vocab_list is None:
+    data = load_learning_vocab(unit)
+    st.session_state.vocab_list = data
+    next_card() # Khởi tạo thẻ đầu tiên
 
 # --- 9. GIAO DIỆN CHÍNH ---
 st.title("Business English")
 
-if not st.session_state.vocab_list and st.session_state.current_card is None:
+if not st.session_state.vocab_list or st.session_state.current_card is None:
     st.balloons()
     st.success("CHÚC MỪNG! BẠN ĐÃ THUỘC HẾT CÁC TỪ TRONG BÀI NÀY!")
-    st.info("Bấm nút 'Reset' bên menu trái nếu muốn ôn tập lại.")
+    st.info("Kiểm tra Sidebar (menu trái) để xem danh sách từ đã thuộc hoặc Reset nếu muốn học lại.")
+    # Dừng app tại đây để không render lỗi
     st.stop()
 
 card = st.session_state.current_card
-if not card: 
-    st.rerun() # Fallback
 
 tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 
@@ -230,16 +287,20 @@ with tab1:
             
     c1, c2, c3 = st.columns([1, 1, 1])
     
-    if c1.button("Flip", use_container_width=True):
+    if c1.button("Lật thẻ", use_container_width=True):
         st.session_state.flip = not st.session_state.flip
         st.rerun()
         
-    # Nút Đã thuộc (Ghi thẳng vào Database)
+    # Nút Đã thuộc (Ghi thẳng vào Database và update state)
     if c2.button("Đã thuộc", use_container_width=True):
-        mark_as_known(card['id']) # Cần cột ID trong DB
-        st.toast(f"Đã lưu: {card['term']} vào danh sách đã thuộc!")
-        # Xóa từ khỏi list tạm thời để không cần fetch lại ngay lập tức
+        # 1. Update DB
+        mark_as_known_db(card['id'])
+        st.toast(f"Đã thuộc: {card['term']}!", icon="🎉")
+        
+        # 2. Xóa khỏi list hiện tại (để khỏi phải fetch lại DB)
         st.session_state.vocab_list = [v for v in st.session_state.vocab_list if v['id'] != card['id']]
+        
+        # 3. Chuyển thẻ
         next_card()
         st.rerun()
         
@@ -320,9 +381,11 @@ with tab4:
     </div>
     """, unsafe_allow_html=True)
     
-    ans = st.radio("Choose answer:", st.session_state.qz_options, format_func=lambda x: x['meaning'], key=f"qz_{st.session_state.ty_key_counter}")
+    # Key động để reset radio khi đổi thẻ
+    ans = st.radio("Choose answer:", st.session_state.qz_options, format_func=lambda x: x['meaning'], key=f"qz_rad_{st.session_state.ty_key_counter}")
     
-    if st.button("Confirm", disabled=st.session_state.qz_answered):
+    q1, q2 = st.columns(2)
+    if q1.button("Confirm", disabled=st.session_state.qz_answered):
         if ans:
             st.session_state.qz_answered = True
             if ans['term'] == card['term']:
@@ -335,6 +398,6 @@ with tab4:
     if st.session_state.qz_answered:
         if st.session_state.qz_feedback == "correct": st.success("Chính xác!")
         else: st.error(f"Sai rồi! Đáp án là: {card['meaning']}")
-        if st.button("Next Question ->"):
+        if q2.button("Next Question ->"):
             next_card()
             st.rerun()
