@@ -327,10 +327,10 @@ with tab2:
     col1, col2, col3 = st.columns(3)
     if col1.button("Check", key="ms_chk"):
         if normalize(user_inp) == normalize(card['term']):
-            st.session_state.ms_feedback = "Giỏi quá!"
+            st.session_state.ms_feedback = "Phương Thảo giỏi quá à"
             st.balloons()
         else:
-            st.session_state.ms_feedback = "Sai rồi!"
+            st.session_state.ms_feedback = "Thiếu dame ời bà!"
         st.rerun()
     if col2.button("Hint", key="ms_hnt"):
         h_idx = [i for i, c in enumerate(st.session_state.ms_masked) if c == '_']
@@ -363,11 +363,11 @@ with tab3:
     t1, t2 = st.columns(2)
     if t1.button("Submit", key="ty_sub", type="primary"):
         if normalize(u_type) == normalize(card['term']):
-            st.session_state.ty_feedback = "Chuẩn không cần chỉnh!"
+            st.session_state.ty_feedback = "Giỏi v học chi nữa"
             st.balloons()
         else:
             st.session_state.ty_mistakes += 1
-            st.session_state.ty_feedback = "Sai rồi!"
+            st.session_state.ty_feedback = "Cố learn thêm nha!"
         st.rerun()
     if t2.button("Skip Word", key="ty_skp"):
         next_card()
@@ -396,8 +396,8 @@ with tab4:
             st.rerun()
             
     if st.session_state.qz_answered:
-        if st.session_state.qz_feedback == "correct": st.success("Chính xác!")
-        else: st.error(f"Sai rồi! Đáp án là: {card['meaning']}")
+        if st.session_state.qz_feedback == "correct": st.success("Ăn tết mà học giỏi he")
+        else: st.error(f"Nope, its mean is: {card['meaning']}")
         if q2.button("Next Question ->"):
             next_card()
             st.rerun()
