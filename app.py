@@ -3,14 +3,13 @@ from supabase import create_client, Client
 import random
 
 # --- 1. SETUP & CONFIG ---
-st.set_page_config(page_title="Vocab cho cổ", page_icon="🌸", layout="centered")
+st.set_page_config(page_title="Vocab cho cổ", layout="centered")
 
-# --- 2. THEME SETTINGS (CHẾ ĐỘ BAN ĐÊM) ---
+# --- 2. THEME SETTINGS ---
 with st.sidebar:
     st.title("Cài đặt")
-    dark_mode = st.toggle("🌙 Dark mode")
+    dark_mode = st.toggle("Dark mode")
 
-# Định nghĩa bảng màu (Theme)
 if dark_mode:
     theme = {
         "bg_color": "#0E1117", "card_bg": "#1E1E1E", "text_main": "#FFFFFF",
@@ -24,7 +23,6 @@ else:
         "shadow": "rgba(0,0,0,0.1)", "button_text": "#333333", "highlight": "#4e54c8"
     }
 
-# --- 3. CSS ĐỘNG ---
 st.markdown(f"""
 <style>
     .stApp {{ background-color: {theme['bg_color']}; color: {theme['text_main']}; }}
@@ -32,7 +30,6 @@ st.markdown(f"""
     .stTextInput > div > div > input {{ color: {theme['text_main']}; background-color: {theme['input_bg']}; }}
     .stRadio label, .stTabs [data-baseweb="tab"] {{ color: {theme['text_main']} !important; }}
     
-    /* Button Style */
     .stButton>button {{
         width: 100%; border-radius: 50px; height: 50px; font-weight: 700; font-size: 20px;
         color: {theme['button_text']} !important; background-color: {theme['input_bg']} !important;
@@ -41,7 +38,6 @@ st.markdown(f"""
     }}
     .stButton>button:hover {{ transform: scale(1.02); border-color: {theme['highlight']} !important; color: {theme['highlight']} !important; }}
     
-    /* Card Styles */
     .flashcard {{
         background-color: {theme['card_bg']}; color: {theme['text_main']}; padding: 40px;
         border-radius: 20px; box-shadow: 0 8px 30px {theme['shadow']}; text-align: center;
@@ -54,7 +50,6 @@ st.markdown(f"""
         box-shadow: 0 4px 15px {theme['shadow']}; margin-bottom: 20px; text-align: center;
     }}
     
-    /* Typography */
     .label {{ font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: {theme['text_sub']}; margin: 20px 0 10px; font-weight: 600; }}
     .term {{ font-size: 50px !important; font-weight: 900; color: {theme['highlight']}; margin-bottom: 20px; line-height: 1.2; }}
     .meaning {{ font-size: 24px !important; font-weight: 500; color: {theme['text_main']}; margin-bottom: 15px; line-height: 1.4; }}
@@ -62,10 +57,8 @@ st.markdown(f"""
     .example {{ font-size: 20px !important; font-style: italic; color: {theme['text_sub']}; line-height: 1.5; }}
     .masked-word {{ font-family: monospace; font-size: 35px; letter-spacing: 5px; font-weight: bold; color: {theme['text_main']}; margin: 20px 0; background: {theme['input_bg']}; padding: 15px; border-radius: 12px; }}
     
-    /* Feedback */
     .success-msg {{ color: #28a745; font-weight: bold; font-size: 24px; padding: 15px; }}
     .error-msg {{ color: #dc3545; font-weight: bold; font-size: 24px; padding: 15px; }}
-    .hint-box {{ background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 18px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -82,14 +75,32 @@ def init_connection():
 supabase = init_connection()
 
 # --- 5. DATA FUNCTIONS ---
-@st.cache_data(ttl=600)
-def load_vocab(unit_filter=None):
+def load_learning_vocab(unit_filter=None):
+    """Chỉ tải những từ CHƯA thuộc (is_known = False)"""
     if not supabase: return []
-    query = supabase.table("vocabulary").select("*")
+    
+    query = supabase.table("vocabulary").select("*").eq("is_known", False)
+    
     if unit_filter and unit_filter != "All":
         query = query.eq("unit", unit_filter)
+        
     response = query.execute()
     return response.data
+
+def mark_as_known(term_id):
+    """Cập nhật trạng thái đã thuộc lên database"""
+    if supabase:
+        supabase.table("vocabulary").update({"is_known": True}).eq("id", term_id).execute()
+
+def reset_progress(unit_filter=None):
+    """Reset trạng thái học lại từ đầu"""
+    if supabase:
+        query = supabase.table("vocabulary").update({"is_known": False})
+        if unit_filter and unit_filter != "All":
+            query = query.eq("unit", unit_filter)
+        else:
+            query = query.neq("id", 0) # Hack để update all
+        query.execute()
 
 def normalize(text):
     return " ".join(text.strip().lower().split())
@@ -103,9 +114,8 @@ def create_masked_term(term):
     return masked_chars, mask_indices
 
 # --- 6. SESSION STATE INIT ---
-# Thêm 'known_words' vào session state
 keys_to_init = [
-    'vocab_list', 'current_card', 'flip', 'known_words',
+    'vocab_list', 'current_card', 'flip',
     'ms_masked', 'ms_indices', 'ms_feedback', 'ms_key_counter', 
     'ty_mistakes', 'ty_feedback', 'ty_key_counter', 
     'qz_options', 'qz_feedback', 'qz_answered'
@@ -115,44 +125,33 @@ for key in keys_to_init:
         if 'counter' in key: st.session_state[key] = 0
         elif 'indices' in key: st.session_state[key] = []
         elif 'flip' in key: st.session_state[key] = False
-        elif 'known_words' in key: st.session_state[key] = set() # Dùng set để lưu các từ đã thuộc
         else: st.session_state[key] = None
 
-# --- 7. CONTROLLER (LOGIC LỌC TỪ) ---
+# --- 7. CONTROLLER ---
 def next_card():
-    if not st.session_state.vocab_list: return
-    
-    # LỌC: Chỉ lấy những từ CHƯA thuộc
-    learning_pool = [
-        v for v in st.session_state.vocab_list 
-        if v['term'] not in st.session_state.known_words
-    ]
-    
-    if not learning_pool:
-        st.session_state.current_card = None # Hết từ để học
+    # Load lại list từ vựng mới nhất (đã trừ những từ vừa mark known)
+    if not st.session_state.vocab_list: 
+        st.session_state.current_card = None
         return
 
-    new_card = random.choice(learning_pool)
+    new_card = random.choice(st.session_state.vocab_list)
     st.session_state.current_card = new_card
     st.session_state.flip = False
     
-    # Reset Missing Game
     masked_chars, hidden_indices = create_masked_term(new_card['term'])
     st.session_state.ms_masked = masked_chars
     st.session_state.ms_indices = hidden_indices
     st.session_state.ms_feedback = None
     st.session_state.ms_key_counter += 1
     
-    # Reset Typing Game
     st.session_state.ty_mistakes = 0
     st.session_state.ty_feedback = None
     st.session_state.ty_key_counter += 1
     
-    # Reset Quiz Game
     correct = new_card
-    # Lấy đáp án sai từ toàn bộ list (kể cả từ đã thuộc cũng có thể làm đáp án sai)
+    # Lấy đáp án sai (có thể lấy từ toàn bộ database để khó hơn, nhưng ở đây lấy trong list hiện tại)
     others = [v for v in st.session_state.vocab_list if v['term'] != correct['term']]
-    wrongs = random.sample(others, min(3, len(others)))
+    wrongs = random.sample(others, min(3, len(others))) if len(others) >= 3 else others
     options = [correct] + wrongs
     random.shuffle(options)
     st.session_state.qz_options = options
@@ -162,75 +161,48 @@ def next_card():
 # --- 8. SIDEBAR CONTROL ---
 with st.sidebar:
     unit_labels = {
-        "All": "Tất cả các từ (All Units)",
-        "Unit 1": "Unit 1 - Terms",
-        "Unit 5": "Unit 5 - Terms",
-        "Unit 6": "Unit 6 - Terms",
-        "Unit 2": "Unit 2 - Business Terms",
-        "Unit 3": "Unit 3 - Business Terms",
-        "Unit 4": "Unit 4 - Business Terms",
-        "Unit 7": "Unit 7 - Business Terms",
-        "Unit 8": "Unit 8 - Business Terms",
-        "Unit 9": "Unit 9 - Business Terms",
-        "Unit 10": "Unit 10 - Business Terms",
+        "All": "Tất cả (All Units)",
+        "Unit 1": "Unit 1", "Unit 5": "Unit 5", "Unit 6": "Unit 6",
+        "Unit 2": "Unit 2", "Unit 3": "Unit 3", "Unit 4": "Unit 4",
+        "Unit 7": "Unit 7", "Unit 8": "Unit 8", "Unit 9": "Unit 9", "Unit 10": "Unit 10",
     }
     
-    unit = st.selectbox("Choose unit:", list(unit_labels.keys()), format_func=lambda x: unit_labels.get(x, x))
+    unit = st.selectbox("Chọn bài:", list(unit_labels.keys()), format_func=lambda x: unit_labels.get(x, x))
     
-    col_a, col_b = st.columns(2)
-    if col_a.button("Reload"):
+    if st.button("Tải lại dữ liệu"):
         st.cache_data.clear()
-        st.rerun()
-    if col_b.button("Reset All"): # Reset lại trạng thái đã thuộc
-        st.session_state.known_words = set()
         st.rerun()
         
     st.markdown("---")
     
-    # === QUẢN LÝ TỪ ĐÃ THUỘC ===
-    num_known = len(st.session_state.known_words)
-    total_vocab = len(st.session_state.vocab_list) if st.session_state.vocab_list else 0
-    
-    st.write(f"📊 **Tiến độ: {num_known}/{total_vocab}**")
-    progress = num_known / total_vocab if total_vocab > 0 else 0
-    st.progress(progress)
-    
-    with st.expander("Xem từ đã thuộc"):
-        if not st.session_state.known_words:
-            st.caption("Chưa có từ nào.")
-        else:
-            for term in list(st.session_state.known_words):
-                c1, c2 = st.columns([0.8, 0.2])
-                c1.write(f"✅ {term}")
-                if c2.button("✖", key=f"remove_{term}", help="Học lại từ này"):
-                    st.session_state.known_words.remove(term)
-                    st.rerun()
+    # === QUẢN LÝ TỪ VỰNG ===
+    st.write("📊 **Quản lý học tập**")
+    if st.button("Reset (Học lại từ đầu)"):
+        reset_progress(unit)
+        st.success(f"Đã reset trạng thái học cho {unit}")
+        st.cache_data.clear()
+        st.rerun()
 
-# Load Data logic
-data = load_vocab(unit)
-if data:
-    if st.session_state.vocab_list != data:
-        st.session_state.vocab_list = data
-        st.session_state.known_words = set() # Reset known words khi đổi Unit (tuỳ chọn)
-        next_card()
-else:
-    st.error("Chưa kết nối dữ liệu!")
-    st.stop()
+# Load Data logic (Mỗi lần rerun sẽ fetch lại list chưa thuộc)
+data = load_learning_vocab(unit)
+st.session_state.vocab_list = data
+
+if st.session_state.current_card is None or st.session_state.current_card not in data:
+     next_card()
 
 # --- 9. GIAO DIỆN CHÍNH ---
 st.title("Business English")
 
-# Kiểm tra xem còn từ để học không
-if st.session_state.current_card is None:
+if not st.session_state.vocab_list and st.session_state.current_card is None:
     st.balloons()
-    st.success("🎉 CHÚC MỪNG! BÀ ĐÃ HỌC HẾT TỪ VỰNG TRONG UNIT NÀY RỒI!")
-    if st.button("Học lại từ đầu"):
-        st.session_state.known_words = set()
-        next_card()
-        st.rerun()
+    st.success("CHÚC MỪNG! BẠN ĐÃ THUỘC HẾT CÁC TỪ TRONG BÀI NÀY!")
+    st.info("Bấm nút 'Reset' bên menu trái nếu muốn ôn tập lại.")
     st.stop()
 
 card = st.session_state.current_card
+if not card: 
+    st.rerun() # Fallback
+
 tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 
 # === TAB 1: FLASHCARD ===
@@ -258,20 +230,20 @@ with tab1:
             
     c1, c2, c3 = st.columns([1, 1, 1])
     
-    # Nút Lật thẻ
-    if c1.button("🔄 Flip", use_container_width=True):
+    if c1.button("Flip", use_container_width=True):
         st.session_state.flip = not st.session_state.flip
         st.rerun()
         
-    # Nút Đã thuộc (Mới)
-    if c2.button("✅ Đã thuộc", use_container_width=True):
-        st.session_state.known_words.add(card['term'])
-        st.toast(f"Đã đánh dấu thuộc: {card['term']}")
+    # Nút Đã thuộc (Ghi thẳng vào Database)
+    if c2.button("Đã thuộc", use_container_width=True):
+        mark_as_known(card['id']) # Cần cột ID trong DB
+        st.toast(f"Đã lưu: {card['term']} vào danh sách đã thuộc!")
+        # Xóa từ khỏi list tạm thời để không cần fetch lại ngay lập tức
+        st.session_state.vocab_list = [v for v in st.session_state.vocab_list if v['id'] != card['id']]
         next_card()
         st.rerun()
         
-    # Nút Next (Chưa thuộc, để sau)
-    if c3.button("➡ Next", type="primary", use_container_width=True):
+    if c3.button("Next", type="primary", use_container_width=True):
         next_card()
         st.rerun()
 
@@ -288,10 +260,8 @@ with tab2:
     user_inp = st.text_input("Gõ từ đầy đủ:", key=f"ms_{st.session_state.ms_key_counter}")
     
     if st.session_state.ms_feedback:
-        if "Giỏi" in st.session_state.ms_feedback:
-            st.markdown(f'<div class="success-msg">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="error-msg">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
+        color = "success-msg" if "Giỏi" in st.session_state.ms_feedback else "error-msg"
+        st.markdown(f'<div class="{color}">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
     if col1.button("Check", key="ms_chk"):
@@ -323,10 +293,9 @@ with tab3:
     u_type = st.text_input("Nhập từ tiếng Anh:", key=f"ty_{st.session_state.ty_key_counter}")
     
     if st.session_state.ty_mistakes >= 3:
-        st.info(f"💡 Gợi ý: {card['example']}")
+        st.info(f"Gợi ý: {card['example']}")
 
     if st.session_state.ty_feedback:
-         # Check if feedback implies success
         color = "success-msg" if "Chuẩn" in st.session_state.ty_feedback else "error-msg"
         st.markdown(f'<div class="{color}">{st.session_state.ty_feedback}</div>', unsafe_allow_html=True)
         
@@ -337,7 +306,7 @@ with tab3:
             st.balloons()
         else:
             st.session_state.ty_mistakes += 1
-            st.session_state.ty_feedback = "Cố lên, sai rồi!"
+            st.session_state.ty_feedback = "Sai rồi!"
         st.rerun()
     if t2.button("Skip Word", key="ty_skp"):
         next_card()
