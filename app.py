@@ -232,7 +232,7 @@ with st.sidebar:
                         st.markdown(f"**{w['term']}**")
                         st.caption(w['vietnamese'])
                     with c2:
-                        if st.button("X", key=f"rst_w_{w['id']}"):
+                        if st.button(" X ", key=f"rst_w_{w['id']}"):
                             mark_as_unknown_db(w['id'])
                             st.toast(f"Đã đưa '{w['term']}' về danh sách học.")
                             # Refresh state nếu đang học unit này
