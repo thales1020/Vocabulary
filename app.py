@@ -327,9 +327,13 @@ with tab2:
     col1, col2, col3 = st.columns(3)
     if col1.button("Check", key=f"ms_chk_{card['id']}"):
         if normalize(user_inp) == normalize(card['term']):
+            # chữ xanh lá
+            st.markdown(f'<div style="color: green;">{user_inp}</div>', unsafe_allow_html=True)
             st.session_state.ms_feedback = "Phương Thảo giỏi quá à"
             st.balloons()
         else:
+            # chữ đỏ
+            st.markdown(f'<div style="color: red;">{user_inp}</div>', unsafe_allow_html=True)
             st.session_state.ms_feedback = "Thiếu dame ời bà!"
         st.rerun()
     if col2.button("Hint", key=f"ms_hnt_{card['id']}"):
@@ -363,10 +367,14 @@ with tab3:
     t1, t2 = st.columns(2)
     if t1.button("Submit", key=f"ty_sub_{card['id']}", type="primary"):
         if normalize(u_type) == normalize(card['term']):
+            # chữ xanh lá
+            st.markdown(f'<div style="color: green;">{u_type}</div>', unsafe_allow_html=True)
             st.session_state.ty_feedback = "Giỏi v học chi nữa"
             st.balloons()
         else:
             st.session_state.ty_mistakes += 1
+            # chữ đỏ
+            st.markdown(f'<div style="color: red;">{u_type}</div>', unsafe_allow_html=True)
             st.session_state.ty_feedback = "Cố learn thêm nha!"
         st.rerun()
     if t2.button("Skip Word", key=f"ty_skp_{card['id']}"):
