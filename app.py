@@ -295,7 +295,7 @@ with tab1:
             st.markdown(f"""
             <div class="flashcard">
                 <div style="color: {theme['highlight']}; font-size: 16px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;">
-                    📚 {unit_name}
+                {unit_name}
                 </div>
                 
                 <div class="label">TERM</div>
@@ -308,7 +308,7 @@ with tab1:
             st.markdown(f"""
             <div class="flashcard">
                 <div style="color: {theme['highlight']}; font-size: 16px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
-                    📚 {unit_name}
+                {unit_name}
                 </div>
 
                 <div class="label">DEFINITION</div>
