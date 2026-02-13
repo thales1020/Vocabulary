@@ -39,7 +39,6 @@ st.markdown(f"""
     }}
     .stButton>button:hover {{ transform: scale(1.02); border-color: {theme['highlight']} !important; color: {theme['highlight']} !important; }}
     
-    /* Style riêng cho nút nhỏ trong sidebar */
     div[data-testid="stSidebar"] .stButton>button {{
         height: auto !important;
         font-size: 14px !important;
@@ -133,7 +132,7 @@ keys_to_init = [
     'vocab_list', 'current_card', 'flip',
     'ms_masked', 'ms_indices', 'ms_feedback', 'ms_key_counter', 
     'ty_mistakes', 'ty_feedback', 'ty_key_counter', 
-    'qz_options', 'qz_feedback', 'qz_answered'
+    'qz_options', 'qz_feedback', 'qz_answered', 'expanded_unit' # <-- THÊM expanded_unit
 ]
 for key in keys_to_init:
     if key not in st.session_state:
@@ -175,8 +174,8 @@ def next_card():
 with st.sidebar:
     unit_labels = {
         "All": "Tất cả (All Units)",
-        "Unit 1": "Unit 1", 
-        "Unit 2": "Unit 2", "Unit 3": "Unit 3", "Unit 4": "Unit 4", "Unit 5": "Unit 5", "Unit 6": "Unit 6",
+        "Unit 1": "Unit 1", "Unit 5": "Unit 5", "Unit 6": "Unit 6",
+        "Unit 2": "Unit 2", "Unit 3": "Unit 3", "Unit 4": "Unit 4",
         "Unit 7": "Unit 7", "Unit 8": "Unit 8", "Unit 9": "Unit 9", "Unit 10": "Unit 10",
     }
     
@@ -198,7 +197,6 @@ with st.sidebar:
         
     st.markdown("---")
     
-    # === QUẢN LÝ TỪ ĐÃ THUỘC (THEO UNIT) ===
     st.markdown("### 🏆 Đã thuộc")
     known_grouped = get_known_vocab_grouped()
     
@@ -206,27 +204,34 @@ with st.sidebar:
         st.caption("Chưa có từ nào đã thuộc.")
     else:
         for u_name, words in known_grouped.items():
-            with st.expander(f"{u_name} ({len(words)} từ)"):
+            # Kiểm tra xem Unit này có đang được set là mở không
+            is_expanded = (st.session_state.expanded_unit == u_name)
+            
+            # Khởi tạo expander với trạng thái expanded động
+            with st.expander(f"{u_name} ({len(words)} từ)", expanded=is_expanded):
                 if st.button(f"Reset {u_name}", key=f"rst_u_{u_name}", type="primary"):
                     reset_unit_db(u_name)
                     st.toast(f"Đã reset {u_name}. Vào 'Chọn bài' để học lại.", icon="✅")
+                    
+                    st.session_state.expanded_unit = u_name # Giữ mở menu
                     if selected_unit == u_name or selected_unit == "All":
                         st.session_state.vocab_list = None
                     time.sleep(0.5)
                     st.rerun()
                 
                 st.markdown("---")
-                # FIX DUPLICATE ID ERROR: Dùng enumerate (idx) để đảm bảo key luôn khác nhau
                 for idx, w in enumerate(words):
                     c1, c2 = st.columns([2, 1])
                     with c1:
                         st.markdown(f"**{w['term']}**")
                         st.caption(w['vietnamese'])
                     with c2:
-                        # KEY DUY NHẤT: kết hợp ID và số thứ tự
                         if st.button("Xóa", key=f"rst_w_{w['id']}_{idx}"):
                             mark_as_unknown_db(w['id'])
                             st.toast(f"Đã đưa '{w['term']}' về danh sách học.")
+                            
+                            st.session_state.expanded_unit = u_name # Giữ mở menu sau khi xóa
+                            
                             if selected_unit == w.get('unit') or selected_unit == "All":
                                 st.session_state.vocab_list = None
                             time.sleep(0.5)
@@ -288,7 +293,6 @@ with tab1:
             
     c1, c2, c3 = st.columns([1, 1, 1])
     
-    # FIX DUPLICATE ID ERROR: Thêm key explicit cho các nút chính dựa trên ID của thẻ
     if c1.button("Lật thẻ", use_container_width=True, key=f"btn_flip_{card['id']}"):
         st.session_state.flip = not st.session_state.flip
         st.rerun()
@@ -321,20 +325,20 @@ with tab2:
         st.markdown(f'<div class="{color}">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
-    if col1.button("Check", key="ms_chk"):
+    if col1.button("Check", key=f"ms_chk_{card['id']}"):
         if normalize(user_inp) == normalize(card['term']):
             st.session_state.ms_feedback = "Phương Thảo giỏi quá à"
             st.balloons()
         else:
             st.session_state.ms_feedback = "Thiếu dame ời bà!"
         st.rerun()
-    if col2.button("Hint", key="ms_hnt"):
+    if col2.button("Hint", key=f"ms_hnt_{card['id']}"):
         h_idx = [i for i, c in enumerate(st.session_state.ms_masked) if c == '_']
         if h_idx:
             idx = random.choice(h_idx)
             st.session_state.ms_masked[idx] = card['term'][idx]
             st.rerun()
-    if col3.button("Skip", key="ms_skp"):
+    if col3.button("Skip", key=f"ms_skp_{card['id']}"):
         next_card()
         st.rerun()
 
@@ -357,7 +361,7 @@ with tab3:
         st.markdown(f'<div class="{color}">{st.session_state.ty_feedback}</div>', unsafe_allow_html=True)
         
     t1, t2 = st.columns(2)
-    if t1.button("Submit", key="ty_sub", type="primary"):
+    if t1.button("Submit", key=f"ty_sub_{card['id']}", type="primary"):
         if normalize(u_type) == normalize(card['term']):
             st.session_state.ty_feedback = "Giỏi v học chi nữa"
             st.balloons()
@@ -365,7 +369,7 @@ with tab3:
             st.session_state.ty_mistakes += 1
             st.session_state.ty_feedback = "Cố learn thêm nha!"
         st.rerun()
-    if t2.button("Skip Word", key="ty_skp"):
+    if t2.button("Skip Word", key=f"ty_skp_{card['id']}"):
         next_card()
         st.rerun()
 
@@ -380,7 +384,7 @@ with tab4:
     ans = st.radio("Choose answer:", st.session_state.qz_options, format_func=lambda x: x['meaning'], key=f"qz_rad_{st.session_state.ty_key_counter}")
     
     q1, q2 = st.columns(2)
-    if q1.button("Confirm", disabled=st.session_state.qz_answered):
+    if q1.button("Confirm", disabled=st.session_state.qz_answered, key=f"qz_cfm_{card['id']}"):
         if ans:
             st.session_state.qz_answered = True
             if ans['term'] == card['term']:
@@ -393,6 +397,6 @@ with tab4:
     if st.session_state.qz_answered:
         if st.session_state.qz_feedback == "correct": st.success("Ăn tết mà học giỏi he")
         else: st.error(f"Nope, its mean is: {card['meaning']}")
-        if q2.button("Next Question ->"):
+        if q2.button("Next Question ->", key=f"qz_nxt_{card['id']}"):
             next_card()
             st.rerun()
