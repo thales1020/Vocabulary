@@ -65,8 +65,8 @@ st.markdown(f"""
     .example {{ font-size: 20px !important; font-style: italic; color: {theme['text_sub']}; line-height: 1.5; }}
     .masked-word {{ font-family: monospace; font-size: 35px; letter-spacing: 5px; font-weight: bold; color: {theme['text_main']}; margin: 20px 0; background: {theme['input_bg']}; padding: 15px; border-radius: 12px; }}
     
-    .success-msg {{ color: #28a745; font-weight: bold; font-size: 24px; padding: 15px; }}
-    .error-msg {{ color: #dc3545; font-weight: bold; font-size: 24px; padding: 15px; }}
+    .success-msg {{ color: #28a745 !important; font-weight: bold; font-size: 24px; padding: 15px; }}
+    .error-msg {{ color: #dc3545 !important; font-weight: bold; font-size: 24px; padding: 15px; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -327,13 +327,9 @@ with tab2:
     col1, col2, col3 = st.columns(3)
     if col1.button("Check", key=f"ms_chk_{card['id']}"):
         if normalize(user_inp) == normalize(card['term']):
-            # chữ xanh lá
-            st.markdown(f'<div style="color: green;">{user_inp}</div>', unsafe_allow_html=True)
             st.session_state.ms_feedback = "Phương Thảo giỏi quá à"
             st.balloons()
         else:
-            # chữ đỏ
-            st.markdown(f'<div style="color: red;">{user_inp}</div>', unsafe_allow_html=True)
             st.session_state.ms_feedback = "Thiếu dame ời bà!"
         st.rerun()
     if col2.button("Hint", key=f"ms_hnt_{card['id']}"):
@@ -361,20 +357,16 @@ with tab3:
         st.info(f"Gợi ý: {card['example']}")
 
     if st.session_state.ty_feedback:
-        color = "success-msg" if "Chuẩn" in st.session_state.ty_feedback else "error-msg"
+        color = "success-msg" if "Giỏi" in st.session_state.ty_feedback else "error-msg"
         st.markdown(f'<div class="{color}">{st.session_state.ty_feedback}</div>', unsafe_allow_html=True)
         
     t1, t2 = st.columns(2)
     if t1.button("Submit", key=f"ty_sub_{card['id']}", type="primary"):
         if normalize(u_type) == normalize(card['term']):
-            # chữ xanh lá
-            st.markdown(f'<div style="color: green;">{u_type}</div>', unsafe_allow_html=True)
             st.session_state.ty_feedback = "Giỏi v học chi nữa"
             st.balloons()
         else:
             st.session_state.ty_mistakes += 1
-            # chữ đỏ
-            st.markdown(f'<div style="color: red;">{u_type}</div>', unsafe_allow_html=True)
             st.session_state.ty_feedback = "Cố learn thêm nha!"
         st.rerun()
     if t2.button("Skip Word", key=f"ty_skp_{card['id']}"):
