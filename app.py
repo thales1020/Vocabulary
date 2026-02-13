@@ -175,8 +175,8 @@ def next_card():
 with st.sidebar:
     unit_labels = {
         "All": "Tất cả (All Units)",
-        "Unit 1": "Unit 1", "Unit 5": "Unit 5", "Unit 6": "Unit 6",
-        "Unit 2": "Unit 2", "Unit 3": "Unit 3", "Unit 4": "Unit 4",
+        "Unit 1": "Unit 1", 
+        "Unit 2": "Unit 2", "Unit 3": "Unit 3", "Unit 4": "Unit 4", "Unit 5": "Unit 5", "Unit 6": "Unit 6",
         "Unit 7": "Unit 7", "Unit 8": "Unit 8", "Unit 9": "Unit 9", "Unit 10": "Unit 10",
     }
     
