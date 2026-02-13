@@ -195,8 +195,20 @@ with st.sidebar:
         "Unit 7": "Unit 7", "Unit 8": "Unit 8", "Unit 9": "Unit 9", "Unit 10": "Unit 10",
     }
     
-    # Selector cho phần HỌC
-    unit = st.selectbox("Chọn bài để học:", list(unit_labels.keys()), format_func=lambda x: unit_labels.get(x, x))
+    # === [FIX LOGIC] KIỂM TRA CHUYỂN BÀI ===
+    # 1. Lưu bài đã chọn vào biến selected_unit
+    selected_unit = st.selectbox("Chọn bài để học:", list(unit_labels.keys()), format_func=lambda x: unit_labels.get(x, x))
+    
+    # 2. Kiểm tra nếu chưa có tracking_unit thì tạo mới
+    if 'tracking_unit' not in st.session_state:
+        st.session_state.tracking_unit = selected_unit
+
+    # 3. Nếu bài chọn (selected_unit) KHÁC với bài đang nhớ (tracking_unit) -> RESET để load lại
+    if st.session_state.tracking_unit != selected_unit:
+        st.session_state.vocab_list = None       # Xóa danh sách cũ
+        st.session_state.current_card = None     # Xóa thẻ cũ
+        st.session_state.tracking_unit = selected_unit # Cập nhật bài mới
+        st.rerun() # Chạy lại app ngay lập tức
     
     if st.button("🔄 Tải lại dữ liệu"):
         st.cache_data.clear()
@@ -219,8 +231,11 @@ with st.sidebar:
                 if st.button(f"Reset {u_name}", key=f"rst_u_{u_name}", type="primary"):
                     reset_unit_db(u_name)
                     st.toast(f"Đã reset {u_name}. Vào 'Chọn bài' để học lại.", icon="✅")
-                    st.cache_data.clear()
-                    st.session_state.vocab_list = None
+                    
+                    # Nếu đang học bài này hoặc "All" thì phải load lại list
+                    if selected_unit == u_name or selected_unit == "All":
+                        st.session_state.vocab_list = None
+                        
                     time.sleep(0.5)
                     st.rerun()
                 
@@ -235,18 +250,24 @@ with st.sidebar:
                         if st.button("Xóa", key=f"rst_w_{w['id']}"):
                             mark_as_unknown_db(w['id'])
                             st.toast(f"Đã đưa '{w['term']}' về danh sách học.")
-                            # Refresh state nếu đang học unit này
-                            st.session_state.vocab_list = None
+                            
+                            # Nếu đang học bài có chứa từ này -> Reset list để nó hiện ra
+                            if selected_unit == w.get('unit') or selected_unit == "All":
+                                st.session_state.vocab_list = None
+                                
                             time.sleep(0.5)
                             st.rerun()
                     st.markdown("---")
 
 
-# Load Data logic (Fetch list chưa thuộc)
+# Load Data logic (Fetch list chưa thuộc dựa trên selected_unit)
 if st.session_state.vocab_list is None:
-    data = load_learning_vocab(unit)
+    data = load_learning_vocab(selected_unit) # Sử dụng selected_unit đã lấy ở trên
     st.session_state.vocab_list = data
-    next_card() # Khởi tạo thẻ đầu tiên
+    if data:
+        next_card() # Khởi tạo thẻ đầu tiên
+    else:
+        st.session_state.current_card = None
 
 # --- 9. GIAO DIỆN CHÍNH ---
 st.title("Business English")
@@ -263,19 +284,33 @@ card = st.session_state.current_card
 tab1, tab2, tab3, tab4 = st.tabs(["Flashcard", "Missing", "Typing", "Quiz"])
 
 # === TAB 1: FLASHCARD ===
+# === TAB 1: FLASHCARD ===
 with tab1:
     with st.container():
+        # Lấy thông tin Unit, nếu không có thì để rỗng
+        unit_name = card.get('unit', '')
+
         if not st.session_state.flip:
+            # --- MẶT TRƯỚC ---
             st.markdown(f"""
             <div class="flashcard">
+                <div style="color: {theme['highlight']}; font-size: 16px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;">
+                    📚 {unit_name}
+                </div>
+                
                 <div class="label">TERM</div>
                 <div class="term">{card['term']}</div>
                 <div style="margin-top:40px; color:{theme['text_sub']}; font-size:12px;">(Bấm 'Lật thẻ' để xem nghĩa)</div>
             </div>
             """, unsafe_allow_html=True)
         else:
+            # --- MẶT SAU ---
             st.markdown(f"""
             <div class="flashcard">
+                <div style="color: {theme['highlight']}; font-size: 16px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">
+                    📚 {unit_name}
+                </div>
+
                 <div class="label">DEFINITION</div>
                 <div class="meaning">{card['meaning']}</div>
                 <div class="label">VIETNAMESE</div>
@@ -291,23 +326,17 @@ with tab1:
         st.session_state.flip = not st.session_state.flip
         st.rerun()
         
-    # Nút Đã thuộc (Ghi thẳng vào Database và update state)
+    # Nút Đã thuộc
     if c2.button("Đã thuộc", use_container_width=True):
-        # 1. Update DB
         mark_as_known_db(card['id'])
         st.toast(f"Đã thuộc: {card['term']}!", icon="🎉")
-        
-        # 2. Xóa khỏi list hiện tại (để khỏi phải fetch lại DB)
         st.session_state.vocab_list = [v for v in st.session_state.vocab_list if v['id'] != card['id']]
-        
-        # 3. Chuyển thẻ
         next_card()
         st.rerun()
         
     if c3.button("Next", type="primary", use_container_width=True):
         next_card()
         st.rerun()
-
 # === TAB 2: MISSING LETTERS ===
 with tab2:
     st.markdown(f"""
