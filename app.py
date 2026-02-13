@@ -321,7 +321,7 @@ with tab2:
     user_inp = st.text_input("Gõ từ đầy đủ:", key=f"ms_{st.session_state.ms_key_counter}")
     
     if st.session_state.ms_feedback:
-        color = "success-msg" if "Giỏi" in st.session_state.ms_feedback else "error-msg"
+        color = "success-msg" if "giỏi" in st.session_state.ms_feedback else "error-msg"
         st.markdown(f'<div class="{color}">{st.session_state.ms_feedback}</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
