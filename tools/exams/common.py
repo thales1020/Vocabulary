@@ -17,6 +17,10 @@ SOURCES = {
     'cs224n': 'Stanford CS224n – NLP with Deep Learning',
     'sklearn': 'scikit-learn User Guide',
     'ioai': 'IOAI Syllabus (Computer Vision, Generative, Self-supervised)',
+    'ph-final': 'IOAI Philippines 2026 – National Finals, Theory & Technical Concepts (Test01)',
+    'ph-semi': 'IOAI Philippines 2026 – National Semi-Finals, Theory Assessment (Test02)',
+    'test03': 'Bộ 20 câu trắc nghiệm Test03 (không ghi nguồn, có kèm đáp án)',
+    'hu-r1': 'Magyar MI Diákolimpia 2026 – National Selection Round 1, bản dịch tiếng Anh của SOTA AI Community, CC BY-NC-SA 4.0 (Test04)',
 }
 
 
@@ -47,3 +51,11 @@ def frac(a, b):
 
 def pre(code):
     return '<pre>' + code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;') + '</pre>'
+
+
+def M(src, stem, options, answers, exp, ref):
+    """Multi-select question: every true statement must be chosen (Hungarian olympiad format)."""
+    assert src in SOURCES, src
+    assert answers and all(0 <= a < len(options) for a in answers), stem
+    return {'src': src, 'q': stem, 'options': list(options), 'answer': sorted(answers), 'multi': True,
+            'shuffle': False, 'explain': exp, 'ref': ref}

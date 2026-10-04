@@ -20,6 +20,8 @@
   --ok-soft: #e0f2e8;
   --bad: #b3362f;
   --bad-soft: #f8e3e0;
+  --warn: #a8660b;
+  --warn-soft: #f8ecd7;
   --figure: #ffffff;
   --font-display: "Lexend", "Be Vietnam Pro", system-ui, sans-serif;
   --font-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -29,13 +31,13 @@
   :root:not([data-theme="light"]) {
     --bg: #12171c; --paper: #1a2128; --ink: #e4e8ea; --muted: #97a3ad; --line: #2e3842;
     --accent: #6fb0dd; --accent-soft: #1d3446; --ok: #5cc68d; --ok-soft: #173326;
-    --bad: #f07f76; --bad-soft: #3a1f1d; --figure: #f4f4f2; color-scheme: dark;
+    --bad: #f07f76; --bad-soft: #3a1f1d; --warn: #e2a64b; --warn-soft: #3a2c16; --figure: #f4f4f2; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #12171c; --paper: #1a2128; --ink: #e4e8ea; --muted: #97a3ad; --line: #2e3842;
   --accent: #6fb0dd; --accent-soft: #1d3446; --ok: #5cc68d; --ok-soft: #173326;
-  --bad: #f07f76; --bad-soft: #3a1f1d; --figure: #f4f4f2; color-scheme: dark;
+  --bad: #f07f76; --bad-soft: #3a1f1d; --warn: #e2a64b; --warn-soft: #3a2c16; --figure: #f4f4f2; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -102,6 +104,16 @@ th { background: var(--accent-soft); font-weight: 600; }
 .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
 .opt.wrong .bubble { background: var(--bad); border-color: var(--bad); color: var(--paper); }
 .opt.dim { opacity: .55; }
+.opt.picked { border-color: var(--accent); background: var(--accent-soft); }
+.opt.picked .bubble { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.opt.missed { border-style: dashed; background: transparent; }
+.opt.missed .bubble { background: transparent; color: var(--ok); }
+.opt .tag { display: block; font-size: 12px; font-weight: 600; color: var(--ok); margin-top: 2px; }
+.multi-hint { font-size: 14px; color: var(--muted); margin: 16px 0 -8px; }
+.submit-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+.verdict.part h3 { color: var(--warn); }
+.cell.part { background: var(--warn); border-color: var(--warn); color: var(--paper); }
+.legend .lpart { background: var(--warn); border-color: var(--warn); }
 
 .verdict { margin-top: 20px; border-top: 1px dashed var(--line); padding-top: 18px; }
 .verdict h3 { font: 600 17px/1.3 var(--font-display); margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
@@ -179,20 +191,22 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
     <main class="card" id="card">
       <div class="qhead"><div class="qnum" id="qnum"></div></div>
       <div class="qtext" id="qtext"></div>
+      <p class="multi-hint" id="multiHint" hidden>Chọn <b>tất cả</b> phát biểu đúng rồi bấm Nộp. Điểm: 5 nếu đúng trọn vẹn, 3 nếu chỉ chọn phát biểu đúng nhưng còn thiếu, 1 nếu có đúng một phát biểu sai, 0 trong các trường hợp còn lại.</p>
       <div class="opts" id="opts"></div>
+      <div class="submit-row" id="submitRow" hidden><button class="btn primary" id="submit" type="button">Nộp câu này</button></div>
       <div class="verdict" id="verdict" hidden></div>
       <div class="nav">
         <button class="btn" id="prev" type="button">← Câu trước</button>
         <button class="btn primary" id="next" type="button">Câu tiếp →</button>
       </div>
-      <div class="hint">Phím tắt: <kbd>A</kbd>–<kbd>D</kbd> hoặc <kbd>1</kbd>–<kbd>4</kbd> để chọn, <kbd>←</kbd> <kbd>→</kbd> để chuyển câu.</div>
+      <div class="hint">Phím tắt: <kbd>A</kbd>–<kbd>D</kbd> hoặc <kbd>1</kbd>–<kbd>4</kbd> để chọn, <kbd>Enter</kbd> để nộp câu chọn nhiều đáp án, <kbd>←</kbd> <kbd>→</kbd> để chuyển câu.</div>
     </main>
 
     <aside class="sheet">
       <h2>Phiếu trả lời</h2>
       <p class="sub">Bấm vào số câu để chuyển nhanh.</p>
       <div class="grid" id="grid"></div>
-      <div class="legend"><span><i></i>Chưa làm</span><span><i class="lok"></i>Đúng</span><span><i class="lbad"></i>Sai</span></div>
+      <div class="legend"><span><i></i>Chưa làm</span><span><i class="lok"></i>Đúng</span><span><i class="lpart"></i>Đúng một phần</span><span><i class="lbad"></i>Sai</span></div>
       <div class="tools">
         <label><input type="checkbox" id="onlyWrong"> Chỉ duyệt các câu làm sai</label>
         <button class="btn" id="reset" type="button">Làm lại từ đầu</button>
@@ -201,19 +215,20 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
           <div><button class="btn primary" id="yes" type="button">Xoá</button><button class="btn" id="no" type="button">Huỷ</button></div>
         </div>
       </div>
-      <p class="note">Nguồn của từng câu ghi ngay dưới lời giải. Đáp án mã đề 006 do Claude tự giải, không phải đáp án chính thức. Các câu dịch từ Hugging Face LLM Course dùng theo giấy phép Apache 2.0.</p>
+      <p class="note">Nguồn của từng câu ghi ngay dưới lời giải. Đáp án mã đề 006 do Claude tự giải, không phải đáp án chính thức. Các câu dịch từ Hugging Face LLM Course dùng theo giấy phép Apache 2.0; phần Olympic AI Hungary dịch từ bản tiếng Anh của SOTA AI Community, giấy phép CC BY-NC-SA 4.0. Đáp án các đề IOAI Philippines do Claude tự giải.</p>
     </aside>
   </div>
 </div>
 
 <script src="exams/de006.js"></script>
 <script src="exams/L01.js"></script>
+<script src="exams/L02.js"></script>
 <script>
 (function () {
   var EXAMS = window.EXAMS || {};
   var ORDER = Object.keys(EXAMS).sort(function (a, b) { return a === '006' ? -1 : b === '006' ? 1 : a < b ? -1 : 1; });
-  var L = 'ABCD';
-  var examKey, KEY, Q = [], picks = {}, cur = 0;
+  var L = 'ABCDEFG';
+  var examKey, KEY, Q = [], picks = {}, cur = 0, draft = [];
 
   var $ = function (id) { return document.getElementById(id); };
   var onlyWrong = $('onlyWrong');
@@ -234,7 +249,7 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
     Q = EXAMS[k].questions;
     // 006 keeps the storage key used before multiple exams existed
     KEY = k === '006' ? 'voai2025-006-answers' : 'voai2025-' + k + '-answers';
-    picks = {}; cur = 0;
+    picks = {}; cur = 0; draft = [];
     try { picks = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { picks = {}; }
     try { var c = parseInt(localStorage.getItem(KEY + '-cur'), 10); if (c >= 0 && c < Q.length) cur = c; } catch (e) {}
     try { localStorage.setItem('voai2025-exam', k); } catch (e) {}
@@ -259,15 +274,30 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(picks)); localStorage.setItem(KEY + '-cur', String(cur)); } catch (e) {}
   }
-  function isWrong(i) { var p = picks[Q[i].id]; return p !== undefined && p !== Q[i].answer; }
+  // Score of a multi-select pick on the paper's 5/3/1/0 scale
+  function points(q, p) {
+    var t = p.filter(function (k) { return q.answer.indexOf(k) !== -1; }).length, f = p.length - t;
+    if (f === 0 && t === q.answer.length) return 5;
+    if (f === 0 && t > 0) return 3;
+    if (f === 1 && t > 0) return 1;
+    return 0;
+  }
+  function isRight(q, p) { return q.multi ? points(q, p) === 5 : p === q.answer; }
+  function state(i) {
+    var q = Q[i], p = picks[q.id];
+    if (p === undefined) return '';
+    if (isRight(q, p)) return 'ok';
+    return q.multi && points(q, p) > 0 ? 'part' : 'bad';
+  }
+  function isWrong(i) { var st = state(i); return st === 'bad' || st === 'part'; }
 
   function renderSheet() {
     var ok = 0, bad = 0;
     Array.prototype.forEach.call(grid.children, function (b, i) {
-      var p = picks[Q[i].id];
-      b.className = 'cell' + (p === undefined ? '' : (p === Q[i].answer ? ' ok' : ' bad')) + (i === cur ? ' cur' : '') +
+      var st = state(i);
+      b.className = 'cell' + (st ? ' ' + st : '') + (i === cur ? ' cur' : '') +
         (onlyWrong.checked && !isWrong(i) ? ' hide' : '');
-      if (p !== undefined) { if (p === Q[i].answer) ok++; else bad++; }
+      if (st === 'ok') ok++; else if (st) bad++;
     });
     $('sDone').textContent = ok + bad;
     $('sOk').textContent = ok;
@@ -282,27 +312,47 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
     $('qtext').innerHTML = q.q;
     var opts = $('opts');
     opts.innerHTML = '';
+    $('multiHint').hidden = !q.multi || done;
+    $('submitRow').hidden = !q.multi || done;
+    $('submit').disabled = !draft.length;
     q.options.forEach(function (o, k) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'opt';
-      b.innerHTML = '<span class="bubble">' + L[k] + '</span><span class="body">' + o + '</span>';
+      var tag = '';
       if (done) {
         b.disabled = true;
-        if (k === q.answer) b.classList.add('correct');
-        else if (k === pick) b.classList.add('wrong');
+        var good = q.multi ? q.answer.indexOf(k) !== -1 : k === q.answer;
+        var chosen = q.multi ? pick.indexOf(k) !== -1 : k === pick;
+        if (good && (chosen || !q.multi)) b.classList.add('correct');
+        else if (good) { b.classList.add('correct', 'missed'); tag = '<span class="tag">Phát biểu đúng bạn chưa chọn</span>'; }
+        else if (chosen) b.classList.add('wrong');
         else b.classList.add('dim');
+      } else if (q.multi) {
+        b.setAttribute('aria-pressed', String(draft.indexOf(k) !== -1));
+        if (draft.indexOf(k) !== -1) b.classList.add('picked');
+        b.addEventListener('click', function () { toggle(k); });
       } else {
         b.addEventListener('click', function () { choose(k); });
       }
+      b.innerHTML = '<span class="bubble">' + L[k] + '</span><span class="body">' + o + tag + '</span>';
       opts.appendChild(b);
     });
     var v = $('verdict');
     if (done) {
-      var right = pick === q.answer;
-      v.className = 'verdict ' + (right ? 'ok' : 'bad');
-      v.innerHTML = '<h3>' + (right ? '✓ Chính xác' : '✗ Chưa đúng, bạn chọn ' + L[pick]) + '</h3>' +
-        '<p><span class="ans">Đáp án đúng: ' + L[q.answer] + '.</span> ' + q.explain + '</p>' +
+      var right = isRight(q, pick), head, ans;
+      if (q.multi) {
+        var pts = points(q, pick);
+        v.className = 'verdict ' + (right ? 'ok' : pts ? 'part' : 'bad');
+        head = right ? '✓ Chính xác, 5/5 điểm' : (pts ? '◐ Đúng một phần, ' : '✗ Chưa đúng, ') + pts + '/5 điểm';
+        ans = 'Phát biểu đúng: ' + q.answer.map(function (k) { return L[k]; }).join(', ') + '.';
+      } else {
+        v.className = 'verdict ' + (right ? 'ok' : 'bad');
+        head = right ? '✓ Chính xác' : '✗ Chưa đúng, bạn chọn ' + L[pick];
+        ans = 'Đáp án đúng: ' + L[q.answer] + '.';
+      }
+      v.innerHTML = '<h3>' + head + '</h3>' +
+        '<p><span class="ans">' + ans + '</span> ' + q.explain + '</p>' +
         (q.source ? '<p class="src">' + q.source + '</p>' : '');
       v.hidden = false;
     } else {
@@ -331,13 +381,28 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
     if (target !== undefined) go(target);
   }
   function go(i) {
-    cur = i; save(); render();
+    cur = i; draft = []; save(); render();
     var card = $('card');
     if (card.getBoundingClientRect().top < 0) card.scrollIntoView({ block: 'start' });
   }
+  function toggle(k) {
+    var q = Q[cur];
+    if (picks[q.id] !== undefined || k >= q.options.length) return;
+    var at = draft.indexOf(k);
+    if (at === -1) draft.push(k); else draft.splice(at, 1);
+    render();
+  }
+  function submit() {
+    var q = Q[cur];
+    if (!q.multi || picks[q.id] !== undefined || !draft.length) return;
+    picks[q.id] = draft.slice().sort(); draft = []; save(); render();
+    $('verdict').scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  $('submit').addEventListener('click', submit);
   function choose(k) {
     var q = Q[cur];
-    if (picks[q.id] !== undefined) return;
+    if (q.multi) { toggle(k); return; }
+    if (picks[q.id] !== undefined || k >= q.options.length) return;
     picks[q.id] = k; save(); render();
     $('verdict').scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
@@ -351,15 +416,17 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
   $('reset').addEventListener('click', function () { $('confirm').hidden = false; });
   $('no').addEventListener('click', function () { $('confirm').hidden = true; });
   $('yes').addEventListener('click', function () {
-    picks = {}; cur = 0; onlyWrong.checked = false; save();
+    picks = {}; cur = 0; draft = []; onlyWrong.checked = false; save();
     $('confirm').hidden = true; render();
   });
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
     var k = e.key.toUpperCase();
-    var idx = L.indexOf(k); if (idx === -1 && '1234'.indexOf(k) !== -1) idx = '1234'.indexOf(k);
+    var idx = L.indexOf(k); if (idx === -1 && '1234567'.indexOf(k) !== -1) idx = '1234567'.indexOf(k);
+    if (e.target && e.target.tagName === 'BUTTON' && e.key === 'Enter') return;
     if (idx !== -1 && k.length === 1) { choose(idx); e.preventDefault(); }
+    else if (e.key === 'Enter' && Q[cur].multi) { submit(); e.preventDefault(); }
     else if (e.key === 'ArrowRight') { step(1); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { step(-1); e.preventDefault(); }
   });

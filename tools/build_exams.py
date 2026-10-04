@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'tools' / 'exams'))
 from common import SOURCES  # noqa: E402
 
-EXAM_MODULES = ['de01']
+EXAM_MODULES = ['de01', 'de02']
 OUT = ROOT / 'docs' / 'exams'
 SIMILARITY_LIMIT = 0.9  # stems at or above this ratio count as duplicates
 
@@ -37,11 +37,12 @@ def build(mod):
     meta, qs = exam.META, exam.QS
     rng = random.Random(meta['key'])
     qs = list(qs)
-    rng.shuffle(qs)
+    if meta.get('shuffle_questions', True):
+        rng.shuffle(qs)
     out = []
     counts = [0, 0, 0, 0]
     for q in qs:
-        if not q['shuffle']:
+        if not q['shuffle'] and not q.get('multi'):
             counts[q['answer']] += 1
     for n, q in enumerate(qs, 1):
         opts, ans = list(q['options']), q['answer']
@@ -52,10 +53,14 @@ def build(mod):
             rest = [o for i, o in enumerate(q['options']) if i != q['answer']]
             rng.shuffle(rest)
             opts = rest[:ans] + [q['options'][q['answer']]] + rest[ans:]
-        counts[ans] += q['shuffle']
+        if q['shuffle']:
+            counts[ans] += 1
         src = SOURCES[q['src']]
         origin = (f'Câu có sẵn, đã dịch: {src} · {q["ref"]}' if q['ref'] else f'Câu soạn mới theo: {src}')
-        out.append({'id': n, 'q': q['q'], 'options': opts, 'answer': ans, 'explain': q['explain'], 'source': origin})
+        item = {'id': n, 'q': q['q'], 'options': opts, 'answer': ans, 'explain': q['explain'], 'source': origin}
+        if q.get('multi'):
+            item['multi'] = True
+        out.append(item)
     return meta, out
 
 
@@ -88,8 +93,9 @@ def main():
 
     for key in built:
         e = exams[key]
-        letters = ['ABCD'[q['answer']] for q in e['questions']]
-        print(key, len(e['questions']), {c: letters.count(c) for c in 'ABCD'})
+        letters = ['ABCD'[q['answer']] for q in e['questions'] if not q.get('multi')]
+        multi = sum(1 for q in e['questions'] if q.get('multi'))
+        print(key, len(e['questions']), {c: letters.count(c) for c in 'ABCD'}, 'multi:', multi)
         js = (f'// {e["title"]} – sinh bởi tools/build_exams.py, không sửa tay.\n'
               f'window.EXAMS = window.EXAMS || {{}};\nwindow.EXAMS[{json.dumps(key)}] = '
               + json.dumps(e, ensure_ascii=False, indent=1) + ';\n')
