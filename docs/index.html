@@ -108,6 +108,15 @@ th { background: var(--accent-soft); font-weight: 600; }
 .verdict.ok h3 { color: var(--ok); } .verdict.bad h3 { color: var(--bad); }
 .verdict .ans { font-weight: 600; }
 .verdict p { margin: 0; max-width: 68ch; }
+.verdict p.src { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.exams { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.exam {
+  font: 600 14px var(--font-body); padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--paper); color: var(--ink);
+}
+.exam:hover { border-color: var(--accent); }
+.exam[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.exam:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 .nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 24px; }
 .btn {
@@ -153,16 +162,18 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Vietnam Olympiad in AI 2025 · Vòng sơ loại · Mã đề 006</div>
-      <h1>Bài thi trắc nghiệm</h1>
-      <p class="sub">100 câu · chọn một đáp án để xem đáp án đúng và lời giải</p>
+      <div class="eyebrow">Vietnam Olympiad in AI 2025 · Vòng sơ loại</div>
+      <h1 id="examTitle">Bài thi trắc nghiệm</h1>
+      <p class="sub" id="examDesc"></p>
     </div>
     <div class="stats" aria-live="polite">
-      <div class="stat"><b id="sDone">0</b><span>ĐÃ LÀM / 100</span></div>
+      <div class="stat"><b id="sDone">0</b><span id="sTotal">ĐÃ LÀM / 100</span></div>
       <div class="stat ok"><b id="sOk">0</b><span>ĐÚNG</span></div>
       <div class="stat bad"><b id="sBad">0</b><span>SAI</span></div>
     </div>
   </header>
+
+  <nav class="exams" id="exams" aria-label="Chọn đề"></nav>
 
   <div class="layout">
     <main class="card" id="card">
@@ -190,39 +201,65 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
           <div><button class="btn primary" id="yes" type="button">Xoá</button><button class="btn" id="no" type="button">Huỷ</button></div>
         </div>
       </div>
-      <p class="note">Đáp án và lời giải do Claude tự giải dựa trên đề, không phải đáp án chính thức của ban tổ chức. Một số câu có thể có cách hiểu khác.</p>
+      <p class="note">Nguồn của từng câu ghi ngay dưới lời giải. Đáp án mã đề 006 do Claude tự giải, không phải đáp án chính thức. Các câu dịch từ Hugging Face LLM Course dùng theo giấy phép Apache 2.0.</p>
     </aside>
   </div>
 </div>
 
-<script src="questions.js"></script>
+<script src="exams/de006.js"></script>
+<script src="exams/L01.js"></script>
 <script>
 (function () {
-  var Q = window.QUIZ || [];
-  var KEY = 'voai2025-006-answers';
+  var EXAMS = window.EXAMS || {};
+  var ORDER = Object.keys(EXAMS).sort(function (a, b) { return a === '006' ? -1 : b === '006' ? 1 : a < b ? -1 : 1; });
   var L = 'ABCD';
-  var picks = {};
-  var cur = 0;
-  try { picks = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { picks = {}; }
-  try { var c = parseInt(localStorage.getItem(KEY + '-cur'), 10); if (c >= 0 && c < Q.length) cur = c; } catch (e) {}
+  var examKey, KEY, Q = [], picks = {}, cur = 0;
 
   var $ = function (id) { return document.getElementById(id); };
   var onlyWrong = $('onlyWrong');
+  var grid = $('grid');
+
+  // Build the exam switcher once
+  ORDER.forEach(function (k) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'exam'; b.dataset.key = k;
+    b.textContent = EXAMS[k].title;
+    b.addEventListener('click', function () { loadExam(k); });
+    $('exams').appendChild(b);
+  });
+
+  function loadExam(k) {
+    if (!EXAMS[k]) k = ORDER[0];
+    examKey = k;
+    Q = EXAMS[k].questions;
+    // 006 keeps the storage key used before multiple exams existed
+    KEY = k === '006' ? 'voai2025-006-answers' : 'voai2025-' + k + '-answers';
+    picks = {}; cur = 0;
+    try { picks = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { picks = {}; }
+    try { var c = parseInt(localStorage.getItem(KEY + '-cur'), 10); if (c >= 0 && c < Q.length) cur = c; } catch (e) {}
+    try { localStorage.setItem('voai2025-exam', k); } catch (e) {}
+    if (location.hash.slice(1) !== k) history.replaceState(null, '', '#' + k);
+    $('examTitle').textContent = EXAMS[k].title;
+    $('examDesc').textContent = Q.length + ' câu · ' + EXAMS[k].desc;
+    $('sTotal').textContent = 'ĐÃ LÀM / ' + Q.length;
+    Array.prototype.forEach.call($('exams').children, function (b) { b.setAttribute('aria-pressed', String(b.dataset.key === k)); });
+    onlyWrong.checked = false;
+    $('confirm').hidden = true;
+    grid.innerHTML = '';
+    Q.forEach(function (q, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'cell'; b.textContent = q.id;
+      b.setAttribute('aria-label', 'Câu ' + q.id);
+      b.addEventListener('click', function () { go(i); });
+      grid.appendChild(b);
+    });
+    render();
+  }
 
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(picks)); localStorage.setItem(KEY + '-cur', String(cur)); } catch (e) {}
   }
   function isWrong(i) { var p = picks[Q[i].id]; return p !== undefined && p !== Q[i].answer; }
-
-  // Build the answer sheet grid once
-  var grid = $('grid');
-  Q.forEach(function (q, i) {
-    var b = document.createElement('button');
-    b.type = 'button'; b.className = 'cell'; b.textContent = q.id;
-    b.setAttribute('aria-label', 'Câu ' + q.id);
-    b.addEventListener('click', function () { go(i); });
-    grid.appendChild(b);
-  });
 
   function renderSheet() {
     var ok = 0, bad = 0;
@@ -265,7 +302,8 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
       var right = pick === q.answer;
       v.className = 'verdict ' + (right ? 'ok' : 'bad');
       v.innerHTML = '<h3>' + (right ? '✓ Chính xác' : '✗ Chưa đúng, bạn chọn ' + L[pick]) + '</h3>' +
-        '<p><span class="ans">Đáp án đúng: ' + L[q.answer] + '.</span> ' + q.explain + '</p>';
+        '<p><span class="ans">Đáp án đúng: ' + L[q.answer] + '.</span> ' + q.explain + '</p>' +
+        (q.source ? '<p class="src">' + q.source + '</p>' : '');
       v.hidden = false;
     } else {
       v.hidden = true;
@@ -326,7 +364,10 @@ aside.sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
     else if (e.key === 'ArrowLeft') { step(-1); e.preventDefault(); }
   });
 
-  render();
+  var start = location.hash.slice(1);
+  if (!EXAMS[start]) { try { start = localStorage.getItem('voai2025-exam'); } catch (e) { start = null; } }
+  loadExam(start);
+  window.addEventListener('hashchange', function () { var k = location.hash.slice(1); if (EXAMS[k] && k !== examKey) loadExam(k); });
 })();
 </script>
 </html>
