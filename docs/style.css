@@ -196,3 +196,27 @@ textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; 
 .eitem.cur { border-color: var(--accent); background: var(--accent-soft); }
 .ename { font-size: 14px; font-weight: 500; }
 .estate { font-size: 12px; color: var(--muted); }
+
+/* Cheat sheet page */
+.cs-tools { display: grid; gap: 6px; max-width: 560px; margin-bottom: 16px; }
+.cs-tools .label { margin: 0; }
+.cs-tools input {
+  font: 15px var(--font-body); color: var(--ink); background: var(--paper);
+  border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px; width: 100%;
+}
+.cs-tools input:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.cs-count { margin: 0; font-size: 13px; color: var(--muted); min-height: 1em; }
+.toc { display: grid; gap: 8px; margin-bottom: 24px; }
+.toc-row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 14px; }
+.toc-group { font: 600 12px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); min-width: 92px; }
+.toc a { color: var(--accent); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+#sections { display: grid; gap: 20px; }
+.cs { scroll-margin-top: 16px; }
+.cs h2 { font: 600 20px/1.3 var(--font-display); margin: 6px 0 8px; text-wrap: balance; }
+.cs-intro { margin: 0 0 6px; color: var(--muted); font-size: 15px; max-width: 80ch; }
+.cs table { width: 100%; font-size: 14px; min-width: 640px; }
+.cs th, .cs td { text-align: left; vertical-align: top; padding: 8px 10px; line-height: 1.5; }
+.cs thead th { white-space: nowrap; }
+.cs tbody th { font-weight: 600; background: transparent; min-width: 120px; }
+.cs tbody tr:nth-child(even) { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
