@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'tools' / 'exams'))
 from common import SOURCES  # noqa: E402
 
-EXAM_MODULES = ['de01', 'de02']
+EXAM_MODULES = ['de01', 'de02', 'de03']
 OUT = ROOT / 'docs' / 'exams'
 SIMILARITY_LIMIT = 0.9  # stems at or above this ratio count as duplicates
 
