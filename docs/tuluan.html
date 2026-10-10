@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="vi">
+<title>Tự luận VOAI 2025</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Lexend:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Vietnam Olympiad in AI 2025 · Luyện tự luận</div>
+      <h1>Tự luận chiến thuật</h1>
+      <p class="sub">10 tình huống · viết chiến thuật của bạn trước, rồi mở bài mẫu và tự chấm theo tiêu chí</p>
+    </div>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><b id="sWritten">0</b><span>ĐÃ VIẾT / 10</span></div>
+      <div class="stat ok"><b id="sScore">–</b><span>ĐIỂM TB / 10</span></div>
+    </div>
+  </header>
+
+  <nav class="exams" aria-label="Chọn đề">
+    <a class="exam" href="index.html#006">Mã đề 006</a>
+    <a class="exam" href="index.html#L01">Đề luyện 01</a>
+    <a class="exam" href="index.html#L02">Đề luyện 02</a>
+    <a class="exam essay-link" href="tuluan.html" aria-current="page">Tự luận</a>
+  </nav>
+
+  <div class="layout">
+    <main class="card" id="card">
+      <div class="qhead"><div class="qnum" id="enum"></div><div class="time" id="etime"></div></div>
+      <h2 class="etitle" id="etitle"></h2>
+      <div class="qtext" id="escenario"></div>
+      <h3 class="label">Yêu cầu</h3>
+      <ol class="tasks" id="etasks"></ol>
+
+      <label class="label" for="answer">Bài làm của bạn</label>
+      <textarea id="answer" rows="14" placeholder="Gợi ý khung: 1. Làm rõ bài toán → 2. Chỉ số đánh giá → 3. Dữ liệu và cách chia → 4. Baseline và mô hình → 5. Chẩn đoán, phân tích lỗi → 6. Rủi ro và triển khai"></textarea>
+      <div class="meta"><span id="wc">0 chữ</span><span id="saved"></span></div>
+
+      <div class="nav">
+        <button class="btn" id="reveal" type="button" aria-expanded="false">Xem bài mẫu và tiêu chí</button>
+      </div>
+
+      <section class="reveal" id="panel" hidden>
+        <h3 class="label">Tự chấm theo tiêu chí <span class="score" id="score"></span></h3>
+        <p class="hint">Tích vào tiêu chí mà bài của bạn đã nêu rõ và có lý do. Chỉ nhắc tên kỹ thuật mà không giải thích vì sao thì chưa tính.</p>
+        <ul class="rubric" id="rubric"></ul>
+        <h3 class="label">Bài mẫu</h3>
+        <div class="model" id="model"></div>
+        <p class="src" id="esrc"></p>
+      </section>
+
+      <div class="nav">
+        <button class="btn" id="prev" type="button">← Đề trước</button>
+        <button class="btn primary" id="next" type="button">Đề tiếp →</button>
+      </div>
+    </main>
+
+    <aside class="sheet">
+      <h2>Danh sách đề</h2>
+      <p class="sub">Bài viết và điểm tự chấm được lưu trên trình duyệt này.</p>
+      <ol class="elist" id="elist"></ol>
+      <p class="note">Các tình huống do Claude soạn dựa trên Machine Learning Yearning, deeplearning.ai – Structuring ML Projects, A Recipe for Training Neural Networks (Karpathy), Google Deep Learning Tuning Playbook, Google Rules of ML, CS231n và các bài giải Kaggle. Bài mẫu là một cách trả lời tốt, không phải đáp án duy nhất.</p>
+    </aside>
+  </div>
+</div>
+
+<script src="essays/essays.js"></script>
+<script>
+(function () {
+  var E = window.ESSAYS || [];
+  var PREFIX = 'voai2025-essay-';
+  var $ = function (id) { return document.getElementById(id); };
+  var cur = 0, saveTimer = null;
+
+  function load(e) {
+    try { return JSON.parse(localStorage.getItem(PREFIX + e.id) || '{}') || {}; } catch (err) { return {}; }
+  }
+  function store(e, d) {
+    try { localStorage.setItem(PREFIX + e.id, JSON.stringify(d)); return true; } catch (err) { return false; }
+  }
+  function words(t) { var m = t.trim().match(/\S+/g); return m ? m.length : 0; }
+  function scoreOf(e, d) {
+    return (d.ticks || []).reduce(function (s, i) { return s + (e.rubric[i] ? e.rubric[i].pts : 0); }, 0);
+  }
+
+  try { var c = parseInt(localStorage.getItem(PREFIX + 'cur'), 10); if (c >= 0 && c < E.length) cur = c; } catch (err) {}
+  var hash = location.hash.slice(1);
+  E.forEach(function (e, i) { if (e.id === hash) cur = i; });
+
+  function renderList() {
+    var list = $('elist'), written = 0, total = 0, scored = 0;
+    list.innerHTML = '';
+    E.forEach(function (e, i) {
+      var d = load(e), n = words(d.text || ''), li = document.createElement('li'), b = document.createElement('button');
+      if (n) written++;
+      var st = 'Chưa viết';
+      if (d.revealed && (d.ticks || []).length) { st = 'Tự chấm ' + scoreOf(e, d) + '/10'; total += scoreOf(e, d); scored++; }
+      else if (d.revealed) st = 'Đã xem bài mẫu';
+      else if (n) st = n + ' chữ';
+      b.type = 'button';
+      b.className = 'eitem' + (i === cur ? ' cur' : '');
+      b.innerHTML = '<span class="ename">' + (i + 1) + '. ' + e.title + '</span><span class="estate">' + st + '</span>';
+      b.addEventListener('click', function () { go(i); });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+    $('sWritten').textContent = written;
+    $('sScore').textContent = scored ? (total / scored).toFixed(1) : '–';
+  }
+
+  function renderScore(e, d) {
+    $('score').textContent = scoreOf(e, d) + '/10';
+  }
+
+  function render() {
+    var e = E[cur], d = load(e);
+    $('enum').innerHTML = 'Đề ' + (cur + 1) + '<small>/ ' + E.length + '</small>';
+    $('etime').textContent = 'Gợi ý: ' + e.minutes + ' phút';
+    $('etitle').textContent = e.title;
+    $('escenario').innerHTML = e.scenario;
+    $('etasks').innerHTML = e.tasks.map(function (t) { return '<li>' + t + '</li>'; }).join('');
+    $('answer').value = d.text || '';
+    $('wc').textContent = words(d.text || '') + ' chữ';
+    $('saved').textContent = '';
+    var open = !!d.revealed;
+    $('panel').hidden = !open;
+    $('reveal').textContent = open ? 'Ẩn bài mẫu' : 'Xem bài mẫu và tiêu chí';
+    $('reveal').setAttribute('aria-expanded', String(open));
+    var ticks = d.ticks || [];
+    $('rubric').innerHTML = '';
+    e.rubric.forEach(function (r, i) {
+      var li = document.createElement('li'), id = 'rb-' + e.id + '-' + i;
+      li.innerHTML = '<input type="checkbox" id="' + id + '"' + (ticks.indexOf(i) !== -1 ? ' checked' : '') + '>' +
+        '<label for="' + id + '"><b>' + r.pts + ' điểm.</b> ' + r.text + '</label>';
+      li.querySelector('input').addEventListener('change', function (ev) {
+        var dd = load(e), t = dd.ticks || [], at = t.indexOf(i);
+        if (ev.target.checked && at === -1) t.push(i);
+        if (!ev.target.checked && at !== -1) t.splice(at, 1);
+        dd.ticks = t; store(e, dd); renderScore(e, dd); renderList();
+      });
+      $('rubric').appendChild(li);
+    });
+    renderScore(e, d);
+    $('model').innerHTML = e.model;
+    $('esrc').textContent = 'Nguồn kiến thức: ' + e.sources.join(' · ');
+    $('prev').disabled = cur === 0;
+    $('next').disabled = cur === E.length - 1;
+    if (location.hash.slice(1) !== e.id) history.replaceState(null, '', '#' + e.id);
+    renderList();
+  }
+
+  function go(i) {
+    cur = i;
+    try { localStorage.setItem(PREFIX + 'cur', String(cur)); } catch (err) {}
+    render();
+    var card = $('card');
+    if (card.getBoundingClientRect().top < 0) card.scrollIntoView({ block: 'start' });
+  }
+
+  $('answer').addEventListener('input', function () {
+    var e = E[cur], v = this.value;
+    $('wc').textContent = words(v) + ' chữ';
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      var d = load(e); d.text = v;
+      $('saved').textContent = store(e, d) ? 'Đã lưu nháp' : 'Không lưu được trên trình duyệt này';
+      renderList();
+    }, 400);
+  });
+  $('reveal').addEventListener('click', function () {
+    var e = E[cur], d = load(e);
+    d.text = $('answer').value;
+    d.revealed = !d.revealed;
+    store(e, d); render();
+    if (d.revealed) $('panel').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+  $('prev').addEventListener('click', function () { if (cur > 0) go(cur - 1); });
+  $('next').addEventListener('click', function () { if (cur < E.length - 1) go(cur + 1); });
+  window.addEventListener('hashchange', function () {
+    var h = location.hash.slice(1);
+    E.forEach(function (e, i) { if (e.id === h && i !== cur) go(i); });
+  });
+
+  render();
+})();
+</script>
+</html>
